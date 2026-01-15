@@ -7,9 +7,9 @@ import { Sidebar } from './components/Sidebar';
 import { AppState, DatasetMetadata, FilterState } from './types';
 import { analyzeDataset } from './services/geminiService';
 import { 
-  Loader2, AlertCircle, RotateCcw, Play, 
+  Loader2, RotateCcw, Play, 
   Database, Box, Key, Table, Trash2, 
-  ChevronRight, ShieldAlert, CreditCard
+  ChevronRight, ShieldAlert, CreditCard, X
 } from 'lucide-react';
 
 const ANALYSIS_STAGES = [
@@ -36,7 +36,6 @@ const App: React.FC = () => {
   });
 
   const [loadingStage, setLoadingStage] = useState(0);
-  const [hasCheckedKey, setHasCheckedKey] = useState(false);
 
   useEffect(() => {
     if (isDark) {
@@ -53,7 +52,7 @@ const App: React.FC = () => {
     if (state.isAnalyzing) {
       interval = window.setInterval(() => {
         setLoadingStage(prev => (prev < ANALYSIS_STAGES.length - 1 ? prev + 1 : prev));
-      }, 2500);
+      }, 2000);
     } else {
       setLoadingStage(0);
     }
@@ -80,7 +79,6 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
-      // Reset error immediately after triggering key selection
       setState(prev => ({ ...prev, error: null }));
     }
   };
@@ -88,13 +86,10 @@ const App: React.FC = () => {
   const triggerAnalysis = async () => {
     if (state.datasets.length === 0) return;
 
-    // Check for API key selection if in AI Studio environment
     if (window.aistudio) {
       const hasKey = await window.aistudio.hasSelectedApiKey();
       if (!hasKey) {
         await handleOpenKeySelector();
-        // The instructions say to proceed immediately after triggering openSelectKey.
-        // If the key is not yet available, the catch block will handle it.
       }
     }
 
@@ -112,15 +107,15 @@ const App: React.FC = () => {
     } catch (err: any) {
       let errorMessage = err.message || "Nexus failed to unify the relational model.";
       
-      // Specifically handle the "Requested entity was not found" per instruction
-      // This often indicates a missing or invalid model due to project settings/billing.
       if (
         errorMessage.includes("Requested entity was not found") || 
         errorMessage.includes("API Key") || 
         errorMessage.includes("401") || 
         errorMessage.includes("403")
       ) {
-        errorMessage = "The AI Engine requires a valid Project Key with billing enabled. Please select or update your API key from a paid GCP project.";
+        errorMessage = "The AI Engine encountered an authentication issue. Please ensure your project has billing enabled.";
+        // Proactively open key selector as per instructions for 404/401
+        handleOpenKeySelector();
       }
       
       setState(prev => ({ ...prev, error: errorMessage, isAnalyzing: false }));
@@ -214,39 +209,40 @@ const App: React.FC = () => {
                       <div key={i} className={`h-1.5 rounded-full transition-all duration-1000 ${i <= loadingStage ? 'w-12 bg-blue-600' : 'w-2 bg-slate-200 dark:bg-slate-800'}`} />
                     ))}
                   </div>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Large models may take 5-15s to respond</p>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Processing relational architecture...</p>
                </div>
-            </div>
-          ) : state.error ? (
-            <div className="h-full flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
-              <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 rounded-[48px] shadow-2xl text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-2 bg-red-500/20" />
-                <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner">
-                  <ShieldAlert className="w-12 h-12 text-red-600" />
-                </div>
-                <h3 className="text-3xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">Relational Engine Fault</h3>
-                <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium leading-relaxed px-4">
-                  {state.error}
-                </p>
-                <div className="flex flex-col gap-4">
-                  <button onClick={handleOpenKeySelector} className="group flex items-center justify-center gap-3 px-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95">
-                    <Key size={22} className="group-hover:rotate-12 transition-transform" /> 
-                    Connect AI Engine Key
-                  </button>
-                  <button onClick={reset} className="flex items-center justify-center gap-3 px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
-                    <RotateCcw size={18} /> Reset Workspace
-                  </button>
-                </div>
-                <div className="mt-12 flex items-center justify-center gap-2 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <CreditCard size={14} className="text-blue-500" />
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">
-                    Requires billing documentation: <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-600 hover:underline">ai.google.dev/billing</a>
-                  </p>
-                </div>
-              </div>
             </div>
           ) : !state.analysis ? (
              <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+                {state.error && (
+                  <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-3xl p-6 shadow-lg animate-in slide-in-from-top-4">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-red-100 dark:bg-red-900/40 rounded-2xl flex-shrink-0">
+                        <ShieldAlert className="text-red-600 w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="text-lg font-black text-red-900 dark:text-red-400">Relational Engine Fault</h4>
+                          <button onClick={() => setState(s => ({ ...s, error: null }))} className="text-red-400 hover:text-red-600 transition-colors">
+                            <X size={18} />
+                          </button>
+                        </div>
+                        <p className="text-red-700 dark:text-red-300/80 font-medium text-sm leading-relaxed mb-4">
+                          {state.error}
+                        </p>
+                        <div className="flex gap-3">
+                           <button onClick={handleOpenKeySelector} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 transition-all shadow-md shadow-red-600/20">
+                             <Key size={14} /> Update Project Key
+                           </button>
+                           <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl font-bold text-xs hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                             <CreditCard size={14} /> Billing Help
+                           </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[48px] p-12 shadow-xl overflow-hidden relative">
                    <div className="absolute top-0 right-0 p-16 opacity-[0.03] pointer-events-none translate-x-1/4 -translate-y-1/4">
                       <Database size={400} className="text-blue-600" />

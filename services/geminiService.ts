@@ -31,11 +31,12 @@ export const analyzeDataset = async (
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview", 
+    model: "gemini-3-flash-preview", 
     contents: prompt,
     config: {
       responseMimeType: "application/json",
-      thinkingConfig: { thinkingBudget: 4000 },
+      // Thinking budget is supported for Gemini 3 Flash (max 24576)
+      thinkingConfig: { thinkingBudget: 2000 },
       responseSchema: {
         type: Type.OBJECT,
         properties: {
