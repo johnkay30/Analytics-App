@@ -4,7 +4,7 @@ import { DashboardAnalysis, DataRow, KPIConfig, ChartConfig, DashboardLayout } f
 import { KPICard } from './KPICard';
 import { ChartWidget } from './ChartWidget';
 import { KPIDetailDrawer } from './KPIDetailDrawer';
-import { Sparkles, TrendingUp, Info, Settings2, Save, RotateCcw, Eye, EyeOff, ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { Sparkles, TrendingUp, Info, Settings2, Save, RotateCcw, Eye, EyeOff, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, LayoutGrid, ChevronRight, BarChartHorizontal } from 'lucide-react';
 
 interface DashboardProps {
   analysis: DashboardAnalysis;
@@ -84,89 +84,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
   }, [analysis.charts, layout, isEditing]);
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-center justify-between gap-4 sticky top-20 z-40 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md py-4 border-b border-slate-200 dark:border-slate-800 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-600 p-2 rounded-lg">
-            <Settings2 className="text-white w-5 h-5" />
+    <div className="space-y-6">
+      {/* 1. TOP HORIZONTAL KPI ROW */}
+      <section className="bg-slate-900/5 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between mb-2 px-2">
+          <div className="flex items-center gap-2">
+            <BarChartHorizontal size={14} className="text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Metrics Stream</h3>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dashboard Workspace</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="text-[10px] font-bold text-slate-400">Real-time Data Active</span>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <button 
-                onClick={resetLayout}
-                className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 font-bold text-sm transition-colors"
-              >
-                <RotateCcw size={16} />
-                Reset Defaults
-              </button>
-              <button 
-                onClick={saveLayout}
-                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40 hover:bg-indigo-700 transition-all active:scale-95"
-              >
-                <Save size={16} />
-                Save Configuration
-              </button>
-            </>
-          ) : (
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-sm hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm"
-            >
-              <Settings2 size={16} />
-              Customize Layout
-            </button>
-          )}
-        </div>
-      </div>
-
-      <section className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 transition-colors">
-        <div className="flex items-center gap-3 mb-4">
-          <Sparkles className="text-indigo-600 dark:text-indigo-400 w-6 h-6" />
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Intelligence</h2>
-        </div>
-        <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed mb-6">
-          {analysis.summary}
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {analysis.insights.map((insight, idx) => (
-            <div key={idx} className="flex gap-3 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
-              <TrendingUp className="w-5 h-5 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
-              <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">{insight}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-center gap-2 mb-6">
-          <Info className="text-slate-400 dark:text-slate-500 w-5 h-5" />
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Nexus Primary Metrics</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="flex items-center gap-4 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
           {visibleKPIs.map((kpi) => (
-            <div key={kpi.id} className="relative group">
+            <div key={kpi.id} className="relative group flex-shrink-0">
               <KPICard 
                 config={kpi} 
                 data={data} 
+                variant="compact"
                 onClick={() => !isEditing && setSelectedKPI(kpi)}
               />
               {isEditing && (
-                <div className="absolute inset-0 z-10 bg-indigo-50/60 dark:bg-indigo-950/60 backdrop-blur-[1px] border-2 border-dashed border-indigo-400 dark:border-indigo-600 rounded-2xl flex flex-col items-center justify-center gap-3 p-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => moveItem('kpi', kpi.id, -1)} className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-colors text-slate-700 dark:text-slate-300"><ArrowLeft size={16}/></button>
-                    <button onClick={() => moveItem('kpi', kpi.id, 1)} className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-indigo-600 hover:text-white transition-colors text-slate-700 dark:text-slate-300"><ArrowRight size={16}/></button>
-                  </div>
-                  <button 
-                    onClick={() => toggleVisibility(kpi.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors shadow-sm ${layout.hiddenIds.includes(kpi.id) ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-                  >
-                    {layout.hiddenIds.includes(kpi.id) ? <><Eye size={14}/> Show Metric</> : <><EyeOff size={14}/> Hide Metric</>}
-                  </button>
-                  {layout.hiddenIds.includes(kpi.id) && <span className="absolute top-2 left-2 px-2 py-0.5 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 text-[10px] rounded font-bold uppercase tracking-widest">Hidden in View</span>}
+                <div className="absolute inset-0 z-10 bg-indigo-600/10 backdrop-blur-[2px] border-2 border-dashed border-indigo-400 rounded-xl flex items-center justify-center gap-1">
+                  <button onClick={() => moveItem('kpi', kpi.id, -1)} className="p-1.5 bg-white dark:bg-slate-800 rounded shadow hover:bg-indigo-600 hover:text-white transition-colors"><ArrowLeft size={12}/></button>
+                  <button onClick={() => toggleVisibility(kpi.id)} className="p-1.5 bg-white dark:bg-slate-800 rounded shadow hover:bg-indigo-600 hover:text-white transition-colors"><EyeOff size={12}/></button>
+                  <button onClick={() => moveItem('kpi', kpi.id, 1)} className="p-1.5 bg-white dark:bg-slate-800 rounded shadow hover:bg-indigo-600 hover:text-white transition-colors"><ArrowRight size={12}/></button>
                 </div>
               )}
             </div>
@@ -174,10 +118,107 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
         </div>
       </section>
 
+      {/* 2. FILTERS AND SELECTION KPI / SUMMARY AREA */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Workspace Controls & Selection */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 h-full shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-600 p-2 rounded-lg">
+                  <Settings2 className="text-white w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white">Workspace</h3>
+              </div>
+              <button 
+                onClick={() => setIsEditing(!isEditing)}
+                className={`p-2 rounded-lg transition-all ${isEditing ? 'bg-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'}`}
+              >
+                <Settings2 size={16} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-3 tracking-widest">Active Analysis Context</p>
+                {selectedKPI ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedKPI.label}</span>
+                      <button onClick={() => setSelectedKPI(null)} className="text-[10px] text-indigo-600 font-bold hover:underline">Clear</button>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                      <Info size={14} /> Focusing visualizations on this metric
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Select a metric from the ticker to filter charts.</p>
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="space-y-2 animate-in slide-in-from-top duration-300">
+                   <button 
+                    onClick={saveLayout}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40"
+                  >
+                    <Save size={14} /> Save Layout
+                  </button>
+                  <button 
+                    onClick={resetLayout}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-xs"
+                  >
+                    <RotateCcw size={14} /> Reset View
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Executive Summary */}
+        <div className="lg:col-span-2">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 h-full transition-colors overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <Sparkles size={120} className="text-indigo-600" />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <Sparkles className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Intelligence</h2>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed mb-6 max-w-2xl">
+                {analysis.summary}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {analysis.insights.map((insight, idx) => (
+                  <div key={idx} className="flex gap-3 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                    <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                      <TrendingUp className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-normal">{insight}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. PROFESSIONAL CHARTS SIDE BY SIDE */}
       <section>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Advanced Data Visualizations</h3>
-          <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">Synthesized by Nexus Intelligence Engine</span>
+        <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <LayoutGrid size={18} className="text-indigo-600" />
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Advanced Data Visualizations</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">View Options</span>
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+              <div className="px-2 py-1 bg-white dark:bg-slate-700 rounded shadow-sm text-[10px] font-bold text-indigo-600">Grid</div>
+              <div className="px-2 py-1 text-[10px] font-bold text-slate-400">List</div>
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {visibleCharts.map((chart) => (
@@ -195,7 +236,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
                   >
                     {layout.hiddenIds.includes(chart.id) ? <><Eye size={18}/> Restore Chart</> : <><EyeOff size={18}/> Hide Visualization</>}
                   </button>
-                  {layout.hiddenIds.includes(chart.id) && <span className="absolute top-4 left-4 px-3 py-1 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 text-xs rounded-full font-bold uppercase tracking-widest">Hidden in Public View</span>}
                 </div>
               )}
             </div>
@@ -203,6 +243,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
         </div>
       </section>
 
+      {/* Drill-down Drawer */}
       {selectedKPI && (
         <KPIDetailDrawer 
           kpi={selectedKPI} 

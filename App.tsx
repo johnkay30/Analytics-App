@@ -6,7 +6,7 @@ import { Dashboard } from './components/Dashboard';
 import { DataPreview } from './components/DataPreview';
 import { AppState, DataRow } from './types';
 import { analyzeDataset } from './services/geminiService';
-import { Loader2, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, RotateCcw, CheckCircle2, Play, FileSpreadsheet, ListChecks, ArrowRight } from 'lucide-react';
 
 const ANALYSIS_STAGES = [
   "Scanning dataset structure...",
@@ -47,22 +47,27 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [state.isAnalyzing]);
 
-  const handleFileUpload = useCallback(async (data: DataRow[]) => {
+  const handleFileUpload = useCallback((data: DataRow[]) => {
     if (data.length === 0) return;
-
     const columns = Object.keys(data[0]);
     setState(prev => ({ 
       ...prev, 
       data, 
       columns, 
-      isAnalyzing: true, 
+      isAnalyzing: false, 
       error: null,
       analysis: null 
     }));
+  }, []);
+
+  const triggerAnalysis = async () => {
+    if (state.data.length === 0) return;
+
+    setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
 
     try {
-      const sample = data.slice(0, 15); 
-      const analysis = await analyzeDataset(columns, sample);
+      const sample = state.data.slice(0, 15); 
+      const analysis = await analyzeDataset(state.columns, sample);
       setState(prev => ({ ...prev, analysis, isAnalyzing: false }));
     } catch (err: any) {
       setState(prev => ({ 
@@ -71,7 +76,7 @@ const App: React.FC = () => {
         isAnalyzing: false 
       }));
     }
-  }, []);
+  };
 
   const reset = () => {
     setState({
@@ -166,11 +171,69 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              ) : !state.analysis ? (
+                /* STAGING AREA: USER CONFIRMS DATASET */
+                <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-xl">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-2xl">
+                          <FileSpreadsheet className="text-green-600 dark:text-green-400 w-8 h-8" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Dataset Verified</h2>
+                          <p className="text-slate-500 dark:text-slate-400 font-medium italic text-sm">Correct data selected? Click below to begin AI synthesis.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                         <button 
+                          onClick={reset}
+                          className="flex items-center gap-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-sm transition-all"
+                        >
+                          Change File
+                        </button>
+                        <button 
+                          onClick={triggerAnalysis}
+                          className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 dark:shadow-indigo-900/40 hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 group"
+                        >
+                          <Play size={20} className="fill-current" />
+                          Commence AI Analysis
+                          <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Record Count</p>
+                        <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">{new Intl.NumberFormat().format(state.data.length)}</p>
+                      </div>
+                      <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Attributes Found</p>
+                        <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">{state.columns.length}</p>
+                      </div>
+                      <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg">
+                           <ListChecks size={20} className="text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Schema mapping completed successfully.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600"></div>
+                      Data Ingestion Preview
+                    </h3>
+                    <DataPreview data={state.data} />
+                  </div>
+                </div>
               ) : (
+                /* DASHBOARD VIEW: ANALYSIS COMPLETE */
                 <>
-                  {state.analysis && (
-                    <Dashboard analysis={state.analysis} data={state.data} isDark={isDark} />
-                  )}
+                  <Dashboard analysis={state.analysis} data={state.data} isDark={isDark} />
                   <div className="mt-16">
                     <div className="flex items-center justify-between mb-8">
                       <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Operational Data Audit</h2>

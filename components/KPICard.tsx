@@ -7,9 +7,10 @@ interface KPICardProps {
   config: KPIConfig;
   data: DataRow[];
   onClick: () => void;
+  variant?: 'default' | 'compact';
 }
 
-export const KPICard: React.FC<KPICardProps> = ({ config, data, onClick }) => {
+export const KPICard: React.FC<KPICardProps> = ({ config, data, onClick, variant = 'default' }) => {
   const calculateValue = () => {
     const values = data.map(row => Number(row[config.valueKey])).filter(v => !isNaN(v));
     
@@ -32,10 +33,29 @@ export const KPICard: React.FC<KPICardProps> = ({ config, data, onClick }) => {
   }).format(rawValue);
 
   const getTrendIcon = () => {
-    if (config.trend === 'up') return <ArrowUpRight className="text-green-500 dark:text-green-400" size={16} />;
-    if (config.trend === 'down') return <ArrowDownRight className="text-red-500 dark:text-red-400" size={16} />;
-    return <Minus className="text-slate-400 dark:text-slate-500" size={16} />;
+    if (config.trend === 'up') return <ArrowUpRight className="text-green-500 dark:text-green-400" size={14} />;
+    if (config.trend === 'down') return <ArrowDownRight className="text-red-500 dark:text-red-400" size={14} />;
+    return <Minus className="text-slate-400 dark:text-slate-500" size={14} />;
   };
+
+  if (variant === 'compact') {
+    return (
+      <div 
+        onClick={onClick}
+        className="flex-shrink-0 w-48 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer group relative"
+      >
+        <div className="flex justify-between items-start mb-1">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate w-32">{config.label}</p>
+          {getTrendIcon()}
+        </div>
+        <div className="flex items-baseline gap-1">
+          {config.prefix && <span className="text-xs text-slate-400 font-bold">{config.prefix}</span>}
+          <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{formattedValue}</span>
+          {config.suffix && <span className="text-[10px] text-slate-400 font-bold">{config.suffix}</span>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
