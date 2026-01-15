@@ -9,16 +9,15 @@ import { analyzeDataset } from './services/geminiService';
 import { 
   Loader2, AlertCircle, RotateCcw, Play, 
   Database, Box, Key, Table, Trash2, 
-  ChevronRight, ShieldAlert
+  ChevronRight, ShieldAlert, CreditCard
 } from 'lucide-react';
 
 const ANALYSIS_STAGES = [
-  "Checking AI Engine Authorization...",
-  "Mapping table relationships...",
-  "Synthesizing report schemas...",
-  "Calculating cross-functional metrics...",
-  "Building multi-page visuals...",
-  "Finalizing workspace..."
+  "Initializing Nexus Core...",
+  "Synchronizing Relational Schemas...",
+  "Applying Multi-Page Architectures...",
+  "Heuristic Insight Generation...",
+  "Finalizing Data Workspace..."
 ];
 
 const App: React.FC = () => {
@@ -37,6 +36,7 @@ const App: React.FC = () => {
   });
 
   const [loadingStage, setLoadingStage] = useState(0);
+  const [hasCheckedKey, setHasCheckedKey] = useState(false);
 
   useEffect(() => {
     if (isDark) {
@@ -53,7 +53,7 @@ const App: React.FC = () => {
     if (state.isAnalyzing) {
       interval = window.setInterval(() => {
         setLoadingStage(prev => (prev < ANALYSIS_STAGES.length - 1 ? prev + 1 : prev));
-      }, 2000);
+      }, 2500);
     } else {
       setLoadingStage(0);
     }
@@ -80,6 +80,7 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
+      // Reset error immediately after triggering key selection
       setState(prev => ({ ...prev, error: null }));
     }
   };
@@ -92,7 +93,8 @@ const App: React.FC = () => {
       const hasKey = await window.aistudio.hasSelectedApiKey();
       if (!hasKey) {
         await handleOpenKeySelector();
-        // Assume success after trigger as per race condition rules
+        // The instructions say to proceed immediately after triggering openSelectKey.
+        // If the key is not yet available, the catch block will handle it.
       }
     }
 
@@ -110,9 +112,15 @@ const App: React.FC = () => {
     } catch (err: any) {
       let errorMessage = err.message || "Nexus failed to unify the relational model.";
       
-      // Handle specific API key errors
-      if (errorMessage.includes("API Key") || errorMessage.includes("401") || errorMessage.includes("Requested entity was not found")) {
-        errorMessage = "The AI Engine requires a valid Project Key with billing enabled. Please select or update your API key.";
+      // Specifically handle the "Requested entity was not found" per instruction
+      // This often indicates a missing or invalid model due to project settings/billing.
+      if (
+        errorMessage.includes("Requested entity was not found") || 
+        errorMessage.includes("API Key") || 
+        errorMessage.includes("401") || 
+        errorMessage.includes("403")
+      ) {
+        errorMessage = "The AI Engine requires a valid Project Key with billing enabled. Please select or update your API key from a paid GCP project.";
       }
       
       setState(prev => ({ ...prev, error: errorMessage, isAnalyzing: false }));
@@ -157,6 +165,7 @@ const App: React.FC = () => {
         analysis={state.analysis}
         isDark={isDark}
         toggleTheme={() => setIsDark(!isDark)}
+        hasError={!!state.error}
       />
       
       <div className="flex flex-1 overflow-hidden">
@@ -173,111 +182,120 @@ const App: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto relative custom-scrollbar">
           {!state.datasets.length ? (
-            <div className="max-w-4xl mx-auto mt-20 px-6">
+            <div className="max-w-4xl mx-auto mt-20 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="text-center mb-12">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-blue-100 dark:border-blue-800">
-                  <Database size={14} /> AI-Powered BI Architecture
+                  <Database size={14} /> AI-Powered BI Platform
                 </div>
                 <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
                   Relational Data <span className="text-blue-600 dark:text-blue-400">Synthesis</span>
                 </h1>
                 <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed">
-                  Connect multiple datasets to generate enterprise-grade reports automatically. 
-                  Nexus uses advanced reasoning to map schemas and derive insights.
+                  Nexus analyzes disparate datasets to generate professional reports. 
+                  Upload your files to begin the architectural mapping phase.
                 </p>
               </div>
               <FileUploader onUpload={handleAddDataset} isDark={isDark} />
             </div>
           ) : state.isAnalyzing ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-950/90 backdrop-blur-sm z-50">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/95 dark:bg-slate-950/95 backdrop-blur-md z-50">
                <div className="relative mb-12">
-                  <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-                  <div className="relative w-24 h-24 flex items-center justify-center">
-                    <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
+                  <div className="absolute inset-0 bg-blue-600/20 rounded-full blur-[80px] animate-pulse"></div>
+                  <div className="relative w-32 h-32 flex items-center justify-center">
+                    <Loader2 className="w-20 h-20 text-blue-600 animate-spin" />
                   </div>
                </div>
-               <div className="text-center space-y-6 max-w-sm">
-                  <h3 className="text-2xl font-black text-slate-800 dark:text-white transition-all">{ANALYSIS_STAGES[loadingStage]}</h3>
-                  <div className="flex gap-1.5 justify-center">
+               <div className="text-center space-y-6 max-w-sm px-6">
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white transition-all duration-1000 tracking-tight">
+                    {ANALYSIS_STAGES[loadingStage]}
+                  </h3>
+                  <div className="flex gap-2 justify-center">
                     {ANALYSIS_STAGES.map((_, i) => (
-                      <div key={i} className={`h-1.5 rounded-full transition-all duration-700 ${i <= loadingStage ? 'w-10 bg-blue-600' : 'w-2 bg-slate-200 dark:bg-slate-800'}`} />
+                      <div key={i} className={`h-1.5 rounded-full transition-all duration-1000 ${i <= loadingStage ? 'w-12 bg-blue-600' : 'w-2 bg-slate-200 dark:bg-slate-800'}`} />
                     ))}
                   </div>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">Large models may take 5-15s to respond</p>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Large models may take 5-15s to respond</p>
                </div>
             </div>
           ) : state.error ? (
-            <div className="h-full flex items-center justify-center p-6">
-              <div className="max-w-lg w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 rounded-[40px] shadow-2xl text-center">
-                <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-[32px] flex items-center justify-center mx-auto mb-8">
+            <div className="h-full flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+              <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-12 rounded-[48px] shadow-2xl text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-red-500/20" />
+                <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner">
                   <ShieldAlert className="w-12 h-12 text-red-600" />
                 </div>
-                <h3 className="text-3xl font-black text-slate-900 dark:text-white mb-4">Relational Engine Fault</h3>
-                <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium leading-relaxed">
+                <h3 className="text-3xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">Relational Engine Fault</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium leading-relaxed px-4">
                   {state.error}
                 </p>
                 <div className="flex flex-col gap-4">
-                  <button onClick={handleOpenKeySelector} className="flex items-center justify-center gap-3 px-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95">
-                    <Key size={20} /> Connect AI Engine Key
+                  <button onClick={handleOpenKeySelector} className="group flex items-center justify-center gap-3 px-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95">
+                    <Key size={22} className="group-hover:rotate-12 transition-transform" /> 
+                    Connect AI Engine Key
                   </button>
                   <button onClick={reset} className="flex items-center justify-center gap-3 px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
                     <RotateCcw size={18} /> Reset Workspace
                   </button>
                 </div>
-                <p className="mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  Ensure you use a key from a paid project via <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 hover:underline">Google AI Studio</a>
-                </p>
+                <div className="mt-12 flex items-center justify-center gap-2 p-4 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <CreditCard size={14} className="text-blue-500" />
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">
+                    Requires billing documentation: <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-600 hover:underline">ai.google.dev/billing</a>
+                  </p>
+                </div>
               </div>
             </div>
           ) : !state.analysis ? (
-             <div className="p-8 max-w-6xl mx-auto space-y-8">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[40px] p-12 shadow-xl overflow-hidden relative">
-                   <div className="absolute top-0 right-0 p-16 opacity-5 pointer-events-none translate-x-1/4 -translate-y-1/4">
-                      <Database size={320} className="text-blue-600" />
+             <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[48px] p-12 shadow-xl overflow-hidden relative">
+                   <div className="absolute top-0 right-0 p-16 opacity-[0.03] pointer-events-none translate-x-1/4 -translate-y-1/4">
+                      <Database size={400} className="text-blue-600" />
                    </div>
                    <div className="relative z-10">
-                      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-16">
-                         <div>
-                            <div className="flex items-center gap-3 mb-4">
-                               <div className="p-2 bg-blue-600 rounded-lg">
-                                 <Box className="text-white w-6 h-6" />
+                      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-12 mb-16">
+                         <div className="max-w-xl">
+                            <div className="flex items-center gap-4 mb-4">
+                               <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20">
+                                 <Box className="text-white w-7 h-7" />
                                </div>
                                <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Workspace Ready</h2>
                             </div>
-                            <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Verify your data relationships. Nexus will architect the reporting logic once you trigger the engine.</p>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium text-xl leading-relaxed">
+                               Multiple datasets detected. Nexus is prepared to synthesize the data relationships and architect your report.
+                            </p>
                          </div>
                          <div className="flex gap-4 w-full lg:w-auto">
-                            <button onClick={triggerAnalysis} className="flex-1 lg:flex-none flex items-center justify-center gap-4 px-12 py-6 bg-blue-600 text-white rounded-[24px] font-black text-xl shadow-2xl shadow-blue-500/40 hover:bg-blue-700 hover:-translate-y-1.5 transition-all active:scale-95 group">
-                               <Play size={24} className="fill-current" />
+                            <button onClick={triggerAnalysis} className="flex-1 lg:flex-none flex items-center justify-center gap-4 px-12 py-7 bg-blue-600 text-white rounded-[28px] font-black text-2xl shadow-2xl shadow-blue-500/40 hover:bg-blue-700 hover:-translate-y-2 transition-all active:scale-95 group">
+                               <Play size={28} className="fill-current" />
                                Analyze Datasets
-                               <ChevronRight className="group-hover:translate-x-1.5 transition-transform" />
+                               <ChevronRight className="group-hover:translate-x-2 transition-transform" />
                             </button>
                          </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                          {state.datasets.map(ds => (
-                            <div key={ds.id} className="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between group transition-all hover:border-blue-300 dark:hover:border-blue-800 hover:shadow-lg">
+                            <div key={ds.id} className="p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[32px] border border-slate-100 dark:border-slate-800 flex flex-col justify-between group transition-all hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-2xl hover:bg-white dark:hover:bg-slate-800">
                                <div>
-                                  <div className="flex items-center justify-between mb-8">
-                                     <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
-                                        <Table className="text-blue-600" size={24} />
+                                  <div className="flex items-center justify-between mb-10">
+                                     <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 group-hover:scale-110 transition-transform">
+                                        <Table className="text-blue-600" size={28} />
                                      </div>
                                      <button onClick={() => removeDataset(ds.id)} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
-                                        <Trash2 size={20} />
+                                        <Trash2 size={24} />
                                      </button>
                                   </div>
-                                  <h4 className="font-black text-slate-900 dark:text-white truncate mb-2 text-xl">{ds.name}</h4>
-                                  <div className="flex items-center gap-3">
-                                     <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-lg font-black uppercase tracking-widest">{ds.rowCount} Records</span>
-                                     <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-3 py-1 rounded-lg font-black uppercase tracking-widest">{ds.columns.length} Fields</span>
+                                  <h4 className="font-black text-slate-900 dark:text-white truncate mb-3 text-2xl">{ds.name}</h4>
+                                  <div className="flex items-center gap-4">
+                                     <span className="text-[11px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-4 py-1.5 rounded-xl font-black uppercase tracking-widest">{ds.rowCount} Records</span>
+                                     <span className="text-[11px] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-4 py-1.5 rounded-xl font-black uppercase tracking-widest">{ds.columns.length} Fields</span>
                                   </div>
                                </div>
                             </div>
                          ))}
-                         <div onClick={() => document.getElementById('file-input')?.click()} className="p-8 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-blue-600 hover:border-blue-400 group">
-                            <Box size={40} className="group-hover:scale-110 transition-transform" />
-                            <span className="font-black text-sm uppercase tracking-widest">Add Table</span>
+                         <div onClick={() => document.getElementById('file-input')?.click()} className="p-10 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-slate-400 hover:text-blue-600 hover:border-blue-400 group">
+                            <Box size={48} className="group-hover:scale-125 transition-transform duration-500" />
+                            <span className="font-black text-sm uppercase tracking-[0.2em]">Add Table</span>
                          </div>
                       </div>
                    </div>
@@ -285,7 +303,7 @@ const App: React.FC = () => {
                 <FileUploader onUpload={handleAddDataset} isDark={isDark} compact />
              </div>
           ) : (
-            <div className="p-6 max-w-[1600px] mx-auto animate-in fade-in duration-1000">
+            <div className="p-6 max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-1000">
               <Dashboard analysis={state.analysis} data={filteredData} isDark={isDark} activePageId={state.activePageId} />
             </div>
           )}

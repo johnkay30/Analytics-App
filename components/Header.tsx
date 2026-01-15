@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BarChart3, RotateCcw, Download, Moon, Sun, ShieldCheck } from 'lucide-react';
+import { BarChart3, RotateCcw, Download, Moon, Sun, ShieldCheck, Zap, ZapOff } from 'lucide-react';
 import { DashboardAnalysis } from '../types';
 
 interface HeaderProps {
@@ -8,9 +8,10 @@ interface HeaderProps {
   analysis?: DashboardAnalysis | null;
   isDark: boolean;
   toggleTheme: () => void;
+  hasError?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onReset, analysis, isDark, toggleTheme }) => {
+export const Header: React.FC<HeaderProps> = ({ onReset, analysis, isDark, toggleTheme, hasError }) => {
   const handleExport = () => {
     if (!analysis) return;
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(analysis, null, 2));
@@ -23,23 +24,25 @@ export const Header: React.FC<HeaderProps> = ({ onReset, analysis, isDark, toggl
   return (
     <header className="sticky top-0 z-[60] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between transition-all">
       <div className="flex items-center gap-4">
-        <div className="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+        <div className={`p-2.5 rounded-xl shadow-lg transition-colors ${hasError ? 'bg-red-500' : 'bg-blue-600 shadow-blue-500/20'}`}>
           <BarChart3 className="text-white w-6 h-6" />
         </div>
         <div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none flex items-center gap-2">
-            NEXUS <span className="text-blue-600">ANALYTICS</span>
+            NEXUS <span className={`${hasError ? 'text-red-500' : 'text-blue-600'}`}>ANALYTICS</span>
           </h1>
           <div className="flex items-center gap-1.5 mt-1">
-             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-             <span className="text-[9px] uppercase tracking-widest text-slate-400 font-black">AI RELATIONAL ENGINE ACTIVE</span>
+             <div className={`w-1.5 h-1.5 rounded-full ${hasError ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
+             <span className="text-[9px] uppercase tracking-widest text-slate-400 font-black">
+               {hasError ? 'RELATIONAL ENGINE STANDBY' : 'AI RELATIONAL ENGINE ACTIVE'}
+             </span>
           </div>
         </div>
       </div>
       
       <div className="flex items-center gap-4">
-        <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 text-xs font-bold border border-slate-200 dark:border-slate-700">
-           <ShieldCheck size={14} className="text-blue-500" />
+        <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-colors">
+           {hasError ? <ZapOff size={14} className="text-red-500" /> : <Zap size={14} className="text-blue-500" />}
            Enterprise Secure Workspace
         </div>
 
@@ -65,10 +68,10 @@ export const Header: React.FC<HeaderProps> = ({ onReset, analysis, isDark, toggl
         {onReset && (
           <button 
             onClick={onReset}
-            className="flex items-center gap-2 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-red-500 transition-all font-bold text-sm"
+            className="flex items-center gap-2 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-red-500 transition-all font-bold text-sm group"
           >
-            <RotateCcw size={18} />
-            <span className="hidden sm:inline">Reset</span>
+            <RotateCcw size={18} className="group-hover:-rotate-180 transition-transform duration-500" />
+            <span className="hidden sm:inline">Reset Workspace</span>
           </button>
         )}
       </div>
