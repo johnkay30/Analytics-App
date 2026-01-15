@@ -6,9 +6,10 @@ import { DatasetMetadata } from '../types';
 interface FileUploaderProps {
   onUpload: (dataset: DatasetMetadata) => void;
   isDark?: boolean;
+  compact?: boolean;
 }
 
-export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, isDark }) => {
+export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, isDark, compact = false }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,10 +83,38 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, isDark }) 
     if (file) handleFile(file);
   };
 
+  if (compact) {
+    return (
+      <div className="w-full">
+        <button 
+          onClick={() => !isProcessing && document.getElementById('file-input-compact')?.click()}
+          disabled={isProcessing}
+          className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-base hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 disabled:opacity-50 w-full md:w-auto"
+        >
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={18} />}
+          {isProcessing ? "Processing..." : "Add More Files"}
+          <input
+            id="file-input-compact"
+            type="file"
+            className="hidden"
+            accept=".csv,.json"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFile(file);
+            }}
+          />
+        </button>
+        {error && (
+          <div className="mt-2 text-red-500 text-[10px] font-bold text-center">{error}</div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <div
-        className={`relative group border-2 border-dashed rounded-3xl p-12 transition-all duration-500 flex flex-col items-center justify-center cursor-pointer overflow-hidden
+        className={`relative group border-2 border-dashed rounded-2xl md:rounded-3xl p-8 md:p-12 transition-all duration-500 flex flex-col items-center justify-center cursor-pointer overflow-hidden
           ${isDragging 
             ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-inner' 
             : 'border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-2xl dark:hover:shadow-indigo-500/5'
@@ -108,26 +137,26 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, isDark }) 
         
         {isProcessing ? (
           <div className="flex flex-col items-center space-y-4 animate-in fade-in duration-300">
-            <div className="w-12 h-12 border-4 border-indigo-100 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
-            <p className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest text-xs">Architecting Data...</p>
+            <div className="w-10 h-10 md:w-12 md:h-12 border-4 border-indigo-100 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
+            <p className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">Architecting Data...</p>
           </div>
         ) : (
           <>
-            <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-all duration-500 shadow-sm group-hover:bg-indigo-600 group-hover:text-white">
-              <Upload size={32} />
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-all duration-500 shadow-sm group-hover:bg-indigo-600 group-hover:text-white">
+              <Upload size={28} md={32} />
             </div>
             
-            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Add Dataset to Workspace</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-center max-w-xs mb-8 font-medium text-sm leading-relaxed">
+            <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight text-center">Add Dataset to Workspace</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-center max-w-xs mb-8 font-medium text-xs md:text-sm leading-relaxed px-4 md:px-0">
               Upload multiple files to create relationships. 
               Supports <span className="text-slate-800 dark:text-white font-bold">CSV</span> and <span className="text-slate-800 dark:text-white font-bold">JSON</span>.
             </p>
             
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2 text-[10px] font-extrabold px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg border border-slate-100 dark:border-slate-700 uppercase tracking-tighter">
+            <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
+              <div className="flex items-center gap-2 text-[9px] md:text-[10px] font-extrabold px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg border border-slate-100 dark:border-slate-700 uppercase tracking-tighter">
                 <FileSpreadsheet size={12} className="text-green-500" /> Multi-Table Support
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-extrabold px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg border border-slate-100 dark:border-slate-700 uppercase tracking-tighter">
+              <div className="flex items-center gap-2 text-[9px] md:text-[10px] font-extrabold px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg border border-slate-100 dark:border-slate-700 uppercase tracking-tighter">
                 <FileJson size={12} className="text-amber-500" /> Fuzzy Join Engine
               </div>
             </div>

@@ -7,32 +7,29 @@ export const analyzeDataset = async (
 ): Promise<DashboardAnalysis> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Prepare a multi-table context for the AI
+  // Prepare a multi-table context for the AI - trimmed for maximum speed
   const tableContext = datasets.map(ds => ({
     tableName: ds.name,
     columns: ds.columns,
-    sample: ds.data.slice(0, 5)
+    sample: ds.data.slice(0, 3) // Reduced sample size for faster token processing
   }));
 
   const prompt = `
-    Act as a World-Class Data Architect and BI Specialist. 
-    You are given multiple related datasets (a Relational Model).
-    
-    Datasets Context:
+    Act as a World-Class Data Architect. Analyze these related datasets:
     ${JSON.stringify(tableContext)}
 
     Task:
-    1. Identify relationships (Foreign Keys) between these tables based on column names and samples.
-    2. Provide a Summary of the combined relational model.
-    3. Define 4-6 Critical Cross-Table KPIs. If values exist in different tables, assume a JOIN on common keys.
-    4. Propose 4-6 Professional Charts (BAR, LINE, PIE, AREA) that visualize correlations between columns of different tables.
-    5. Provide 3 high-level business insights that can only be found by combining these datasets.
+    1. Identify relationships (Foreign Keys).
+    2. Provide a Summary.
+    3. Define 4-6 Cross-Table KPIs (assume JOINs on common keys).
+    4. Propose 4-6 Charts (BAR, LINE, PIE, AREA).
+    5. Provide 3 cross-table business insights.
 
-    Return the analysis in the specified JSON format.
+    Return the analysis in JSON format. Be concise.
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview", // Upgraded to Pro for complex relational reasoning
+    model: "gemini-3-flash-preview", // Switched to Flash for high speed
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -42,8 +39,7 @@ export const analyzeDataset = async (
           summary: { type: Type.STRING },
           suggestedJoins: { 
             type: Type.ARRAY, 
-            items: { type: Type.STRING },
-            description: "Natural language description of how tables connect"
+            items: { type: Type.STRING }
           },
           kpis: {
             type: Type.ARRAY,
@@ -52,7 +48,7 @@ export const analyzeDataset = async (
               properties: {
                 id: { type: Type.STRING },
                 label: { type: Type.STRING },
-                valueKey: { type: Type.STRING, description: "The column name to aggregate" },
+                valueKey: { type: Type.STRING },
                 aggregation: { type: Type.STRING },
                 prefix: { type: Type.STRING },
                 suffix: { type: Type.STRING }

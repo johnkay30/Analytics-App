@@ -65,16 +65,16 @@ export const KPIDetailDrawer: React.FC<KPIDetailDrawerProps> = ({ kpi, data, onC
         onClick={onClose}
       />
       
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 ease-out transition-colors">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+      <div className="relative w-full sm:max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 ease-out transition-colors">
+        <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="p-1.5 bg-indigo-600 rounded-lg">
                 <BarChart2 size={16} className="text-white" />
               </span>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{kpi.label}</h2>
+              <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white truncate max-w-[200px] sm:max-w-none">{kpi.label}</h2>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Metric Intelligence Detail</p>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium">Metric Intelligence Detail</p>
           </div>
           <button 
             onClick={onClose}
@@ -84,22 +84,22 @@ export const KPIDetailDrawer: React.FC<KPIDetailDrawerProps> = ({ kpi, data, onC
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-6 md:space-y-8">
           <section>
             <div className="flex items-center gap-2 mb-4">
               <Sigma size={16} className="text-indigo-600 dark:text-indigo-400" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Statistical Distribution</h3>
+              <h3 className="text-[10px] md:text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Statistical Distribution</h3>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
               {[
                 { label: 'Minimum', value: stats.min },
                 { label: 'Maximum', value: stats.max },
                 { label: 'Average', value: stats.avg },
                 { label: 'Median', value: stats.median },
               ].map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{item.label}</p>
-                  <p className="text-lg font-bold text-slate-800 dark:text-white tabular-nums">
+                <div key={idx} className="p-3 md:p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                  <p className="text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{item.label}</p>
+                  <p className="text-base md:text-lg font-bold text-slate-800 dark:text-white tabular-nums">
                     {new Intl.NumberFormat('en-US', { notation: 'compact' }).format(item.value)}
                   </p>
                 </div>
@@ -108,27 +108,27 @@ export const KPIDetailDrawer: React.FC<KPIDetailDrawerProps> = ({ kpi, data, onC
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <ListFilter size={16} className="text-indigo-600 dark:text-indigo-400" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                  Contribution by {stats.categoricalColumn}
+                <h3 className="text-[10px] md:text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider truncate">
+                  By {stats.categoricalColumn}
                 </h3>
               </div>
-              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-1 rounded-full uppercase">Top 8 Segments</span>
+              <span className="self-start sm:self-auto text-[9px] md:text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-1 rounded-full uppercase">Top Segments</span>
             </div>
             
-            <div className="h-64 w-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 transition-colors">
+            <div className="h-56 md:h-64 w-full bg-slate-50 dark:bg-slate-800/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-slate-100 dark:border-slate-800 transition-colors">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.chartData} layout="vertical" margin={{ left: 20 }}>
+                <BarChart data={stats.chartData} layout="vertical" margin={{ left: 0, right: 10 }}>
                   <XAxis type="number" hide />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
                     axisLine={false} 
                     tickLine={false} 
-                    fontSize={11}
-                    width={80}
+                    fontSize={10}
+                    width={70}
                     tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}
                   />
                   <Tooltip 
@@ -138,10 +138,11 @@ export const KPIDetailDrawer: React.FC<KPIDetailDrawerProps> = ({ kpi, data, onC
                       border: 'none', 
                       boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
                       backgroundColor: isDark ? '#1e293b' : '#fff',
-                      color: isDark ? '#fff' : '#000'
+                      color: isDark ? '#fff' : '#000',
+                      fontSize: '11px'
                     }}
                   />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
                     {stats.chartData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
@@ -151,27 +152,27 @@ export const KPIDetailDrawer: React.FC<KPIDetailDrawerProps> = ({ kpi, data, onC
             </div>
           </section>
 
-          <section className="bg-indigo-900 dark:bg-indigo-950 rounded-2xl p-6 text-white relative overflow-hidden transition-colors">
+          <section className="bg-indigo-900 dark:bg-indigo-950 rounded-xl md:rounded-2xl p-4 md:p-6 text-white relative overflow-hidden transition-colors">
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-3">
-                <Info size={16} className="text-indigo-300 dark:text-indigo-400" />
-                <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-300 dark:text-indigo-400">Nexus Observations</h3>
+                <Info size={14} md={16} className="text-indigo-300 dark:text-indigo-400" />
+                <h3 className="text-[9px] md:text-xs font-bold uppercase tracking-widest text-indigo-300 dark:text-indigo-400">Nexus Observations</h3>
               </div>
-              <p className="text-sm leading-relaxed text-indigo-50/90 dark:text-indigo-200/90 font-medium">
+              <p className="text-xs md:text-sm leading-relaxed text-indigo-50/90 dark:text-indigo-200/90 font-medium">
                 Analysis of <strong>{stats.count}</strong> records shows a concentration of {kpi.label} 
                 within the <strong>{stats.chartData[0]?.name || 'primary'}</strong> segment, which accounts 
                 for approximately <strong>{((stats.chartData[0]?.value / stats.total) * 100).toFixed(1)}%</strong> of the total 
                 aggregated value.
               </p>
             </div>
-            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-6 -right-6 w-24 md:w-32 h-24 md:h-32 bg-white/10 rounded-full blur-3xl"></div>
           </section>
         </div>
 
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 transition-colors">
+        <div className="p-4 md:p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 transition-colors">
           <button 
             onClick={onClose}
-            className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-all active:scale-[0.98]"
+            className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-all active:scale-[0.98] text-sm md:text-base"
           >
             Close Drill-Down View
           </button>
