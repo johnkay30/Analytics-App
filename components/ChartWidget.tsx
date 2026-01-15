@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { 
   ResponsiveContainer, 
@@ -9,7 +8,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend 
 } from 'recharts';
 import { ChartConfig, ChartType, DataRow } from '../types';
-import { TrendingUp, TrendingDown, Minus, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, AlertCircle } from 'lucide-react';
 
 interface ChartWidgetProps {
   config: ChartConfig;
@@ -22,12 +21,12 @@ const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 const CustomTooltip = ({ active, payload, label, isDark }: any) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload;
-    const value = payload[0].value;
-    const average = dataPoint.average;
+    const value = payload[0].value || 0;
+    const average = dataPoint.average || 1;
     const prevValue = dataPoint.prevValue;
 
-    const diffFromAvg = average ? ((value - average) / average) * 100 : 0;
-    const diffFromPrev = prevValue !== undefined ? ((value - prevValue) / prevValue) * 100 : null;
+    const diffFromAvg = ((value - average) / average) * 100;
+    const diffFromPrev = prevValue !== undefined ? ((value - prevValue) / (prevValue || 1)) * 100 : null;
 
     return (
       <div className={`${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'} p-4 rounded-xl border shadow-xl ring-1 ring-black/5 min-w-[220px] animate-in fade-in zoom-in duration-150`}>
@@ -87,19 +86,22 @@ const CustomTooltip = ({ active, payload, label, isDark }: any) => {
 
 export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }) => {
   const processedData = useMemo(() => {
+    if (!data || !Array.isArray(data) || data.length === 0) return [];
+    
     const agg: { [key: string]: any } = {};
     const count: { [key: string]: number } = {};
-    const workingSet = data.slice(0, 100);
+    const workingSet = data.slice(0, 500); // Limit processing for performance
 
     workingSet.forEach(row => {
-      const xVal = row[config.xAxisKey];
-      const yVal = Number(row[config.yAxisKey]) || 0;
+      const xVal = String(row[config.xAxisKey] || 'N/A');
+      const yVal = Number(row[config.yAxisKey]);
+      const validY = !isNaN(yVal) ? yVal : 0;
       
       if (!agg[xVal]) {
         agg[xVal] = 0;
         count[xVal] = 0;
       }
-      agg[xVal] += yVal;
+      agg[xVal] += validY;
       count[xVal]++;
     });
 
@@ -113,6 +115,8 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
       return valA < valB ? -1 : 1;
     });
 
+    if (items.length === 0) return [];
+
     const totalValue = items.reduce((sum, item) => sum + item.value, 0);
     const seriesAverage = items.length > 0 ? totalValue / items.length : 0;
 
@@ -123,35 +127,44 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
     }));
   }, [data, config]);
 
-  const textColor = isDark ? '#94a3b8' : '#94a3b8'; // Adjusted axis label color
+  const textColor = isDark ? '#94a3b8' : '#64748b';
   const gridColor = isDark ? '#1e293b' : '#f1f5f9';
 
   const renderChart = () => {
+    if (processedData.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
+          <AlertCircle size={24} />
+          <p className="text-sm italic">No data available for these keys</p>
+        </div>
+      );
+    }
+
     switch (config.type) {
       case ChartType.BAR:
         return (
           <BarChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-            <XAxis dataKey="name" stroke={textColor} fontSize={11} tickLine={false} axisLine={false} dy={10} />
-            <YAxis stroke={textColor} fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
+            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
+            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
             <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc', radius: 4 }} />
-            <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={32} />
+            <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={24} />
           </BarChart>
         );
       case ChartType.LINE:
         return (
           <LineChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-            <XAxis dataKey="name" stroke={textColor} fontSize={11} tickLine={false} axisLine={false} dy={10} />
-            <YAxis stroke={textColor} fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
+            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
+            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
             <Tooltip content={<CustomTooltip isDark={isDark} />} />
             <Line 
               type="monotone" 
               dataKey="value" 
               stroke="#4f46e5" 
-              strokeWidth={3} 
-              dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: isDark ? '#0f172a' : '#fff' }} 
-              activeDot={{ r: 6, strokeWidth: 0 }} 
+              strokeWidth={2} 
+              dot={{ r: 3, fill: '#4f46e5', strokeWidth: 1.5, stroke: isDark ? '#0f172a' : '#fff' }} 
+              activeDot={{ r: 5, strokeWidth: 0 }} 
             />
           </LineChart>
         );
@@ -159,8 +172,8 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
         return (
           <AreaChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-            <XAxis dataKey="name" stroke={textColor} fontSize={11} tickLine={false} axisLine={false} dy={10} />
-            <YAxis stroke={textColor} fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
+            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
+            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
             <Tooltip content={<CustomTooltip isDark={isDark} />} />
             <Area 
               type="monotone" 
@@ -168,10 +181,10 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
               stroke="#4f46e5" 
               strokeWidth={2}
               fillOpacity={1} 
-              fill="url(#colorValue)" 
+              fill={`url(#colorValue-${config.id})`} 
             />
             <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`colorValue-${config.id}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#4f46e5" stopOpacity={isDark ? 0.4 : 0.25}/>
                 <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
               </linearGradient>
@@ -183,8 +196,8 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
           <PieChart>
             <Pie
               data={processedData}
-              innerRadius={70}
-              outerRadius={95}
+              innerRadius={60}
+              outerRadius={85}
               paddingAngle={4}
               dataKey="value"
             >
@@ -193,7 +206,7 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip isDark={isDark} />} />
-            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 500, color: isDark ? '#94a3b8' : '#64748b' }} />
+            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
           </PieChart>
         );
       default:
@@ -205,9 +218,8 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }
     <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col h-[450px] hover:shadow-lg dark:hover:shadow-indigo-500/5 transition-all duration-300 group overflow-hidden">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
-          <h4 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{config.title}</h4>
+          <h4 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{config.title || "Untitled Chart"}</h4>
           <div className="flex gap-1">
-            <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800"></div>
             <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800"></div>
             <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800"></div>
           </div>

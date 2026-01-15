@@ -1,10 +1,9 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DashboardAnalysis, DataRow, KPIConfig, ChartConfig, DashboardLayout } from '../types';
 import { KPICard } from './KPICard';
 import { ChartWidget } from './ChartWidget';
 import { KPIDetailDrawer } from './KPIDetailDrawer';
-import { Sparkles, TrendingUp, Info, Settings2, Save, RotateCcw, Eye, EyeOff, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, LayoutGrid, ChevronRight, BarChartHorizontal } from 'lucide-react';
+import { Sparkles, TrendingUp, Info, Settings2, Save, RotateCcw, Eye, EyeOff, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, LayoutGrid, BarChartHorizontal, AlertTriangle } from 'lucide-react';
 
 interface DashboardProps {
   analysis: DashboardAnalysis;
@@ -16,15 +15,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
   const [selectedKPI, setSelectedKPI] = useState<KPIConfig | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Storage key based on combined schema hash
+  // Basic validation to prevent white screen on malformed analysis
+  if (!analysis || !Array.isArray(analysis.kpis) || !Array.isArray(analysis.charts)) {
+    return (
+      <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+        <AlertTriangle className="mx-auto text-amber-500 mb-4" size={48} />
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Analysis Structure Invalid</h2>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">The AI returned a non-standard response. Please try analyzing again.</p>
+      </div>
+    );
+  }
+
   const datasetKey = useMemo(() => {
-    const kpiIds = analysis.kpis.map(k => k.id).sort().join(',');
-    return `nexus_multi_layout_${btoa(kpiIds).slice(0, 16)}`;
+    try {
+      const kpiIds = (analysis.kpis || []).map(k => k.id).sort().join(',');
+      return `nexus_multi_layout_${btoa(kpiIds).slice(0, 16)}`;
+    } catch (e) {
+      return 'nexus_default_layout';
+    }
   }, [analysis]);
 
   const [layout, setLayout] = useState<DashboardLayout>(() => {
-    const saved = localStorage.getItem(datasetKey);
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = localStorage.getItem(datasetKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    
     return {
       kpiOrder: analysis.kpis.map(k => k.id),
       chartOrder: analysis.charts.map(c => c.id),
@@ -59,7 +75,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
   const moveItem = (type: 'kpi' | 'chart', id: string, direction: number) => {
     setLayout(prev => {
       const orderKey = type === 'kpi' ? 'kpiOrder' : 'chartOrder';
-      const currentOrder = [...prev[orderKey]];
+      const currentOrder = [...(prev[orderKey] || [])];
       const index = currentOrder.indexOf(id);
       const newIndex = index + direction;
       
@@ -73,20 +89,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
   };
 
   const visibleKPIs = useMemo(() => {
-    return layout.kpiOrder
+    const order = Array.isArray(layout.kpiOrder) ? layout.kpiOrder : [];
+    return order
       .map(id => analysis.kpis.find(k => k.id === id))
       .filter((k): k is KPIConfig => !!k && (isEditing || !layout.hiddenIds.includes(k.id)));
   }, [analysis.kpis, layout, isEditing]);
 
   const visibleCharts = useMemo(() => {
-    return layout.chartOrder
+    const order = Array.isArray(layout.chartOrder) ? layout.chartOrder : [];
+    return order
       .map(id => analysis.charts.find(c => c.id === id))
       .filter((c): c is ChartConfig => !!c && (isEditing || !layout.hiddenIds.includes(c.id)));
   }, [analysis.charts, layout, isEditing]);
 
   return (
     <div className="space-y-6">
-      {/* 1. TOP HORIZONTAL KPI ROW */}
       <section className="bg-slate-900/5 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
         <div className="flex items-center justify-between mb-2 px-2">
           <div className="flex items-center gap-2">
@@ -119,7 +136,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
         </div>
       </section>
 
-      {/* 2. FILTERS AND SELECTION KPI / SUMMARY AREA */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 h-full shadow-sm">
@@ -181,10 +197,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Relational Summary</h2>
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed mb-6 max-w-2xl">
-                {analysis.summary}
+                {analysis.summary || "No summary available."}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {analysis.insights.map((insight, idx) => (
+                {(analysis.insights || []).map((insight, idx) => (
                   <div key={idx} className="flex gap-3 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
                     <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                       <TrendingUp className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
@@ -198,7 +214,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
         </div>
       </section>
 
-      {/* 3. SIDE BY SIDE CHARTS */}
       <section>
         <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
