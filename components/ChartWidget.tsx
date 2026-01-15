@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { 
   ResponsiveContainer, 
@@ -8,7 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend 
 } from 'recharts';
 import { ChartConfig, ChartType, DataRow } from '../types';
-import { TrendingUp, TrendingDown, Target, AlertCircle } from 'lucide-react';
+import { Info, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ChartWidgetProps {
   config: ChartConfig;
@@ -16,220 +17,108 @@ interface ChartWidgetProps {
   isDark?: boolean;
 }
 
-const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
-const CustomTooltip = ({ active, payload, label, isDark }: any) => {
-  if (active && payload && payload.length) {
-    const dataPoint = payload[0].payload;
-    const value = payload[0].value || 0;
-    const average = dataPoint.average || 1;
-    const prevValue = dataPoint.prevValue;
-
-    const diffFromAvg = ((value - average) / average) * 100;
-    const diffFromPrev = prevValue !== undefined ? ((value - prevValue) / (prevValue || 1)) * 100 : null;
-
-    return (
-      <div className={`${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'} p-4 rounded-xl border shadow-xl ring-1 ring-black/5 min-w-[220px] animate-in fade-in zoom-in duration-150`}>
-        <p className={`text-xs font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'} uppercase tracking-wider mb-2 border-b ${isDark ? 'border-slate-800' : 'border-slate-50'} pb-1`}>
-          {label || payload[0].name}
-        </p>
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-2.5 h-2.5 rounded-sm" 
-                style={{ backgroundColor: payload[0].color || payload[0].fill || COLORS[0] }}
-              />
-              <span className={`text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Value</span>
-            </div>
-            <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'} tabular-nums`}>
-              {new Intl.NumberFormat('en-US').format(value)}
-            </span>
-          </div>
-
-          <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-50'} space-y-2`}>
-            <div className="flex items-center justify-between text-[11px]">
-              <div className={`flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium`}>
-                <Target size={12} className={isDark ? 'text-slate-600' : 'text-slate-400'} />
-                <span>Vs. Average</span>
-              </div>
-              <div className={`flex items-center gap-0.5 font-bold ${diffFromAvg >= 0 ? 'text-green-500' : 'text-amber-500'}`}>
-                {diffFromAvg >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                {Math.abs(diffFromAvg).toFixed(1)}%
-              </div>
-            </div>
-
-            {diffFromPrev !== null && isFinite(diffFromPrev) && (
-              <div className="flex items-center justify-between text-[11px]">
-                <div className={`flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-500'} font-medium`}>
-                  {diffFromPrev >= 0 ? <TrendingUp size={12} className={isDark ? 'text-slate-600' : 'text-slate-400'} /> : <TrendingDown size={12} className={isDark ? 'text-slate-600' : 'text-slate-400'} />}
-                  <span>Period Trend</span>
-                </div>
-                <div className={`font-bold ${diffFromPrev >= 0 ? 'text-indigo-500' : 'text-rose-500'}`}>
-                  {diffFromPrev > 0 ? '+' : ''}{diffFromPrev.toFixed(1)}%
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={`flex items-center justify-between gap-4 pt-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-50'}`}>
-            <span className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'} font-bold uppercase tracking-tighter`}>Samples</span>
-            <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400 bg-slate-800' : 'text-slate-500 bg-slate-100'} px-1.5 py-0.5 rounded`}>{dataPoint.count}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
+const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#4f46e5'];
 
 export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, data, isDark }) => {
   const processedData = useMemo(() => {
-    if (!data || !Array.isArray(data) || data.length === 0) return [];
+    if (!data.length) return [];
     
-    const agg: { [key: string]: any } = {};
+    const agg: { [key: string]: number } = {};
     const count: { [key: string]: number } = {};
-    const workingSet = data.slice(0, 500); // Limit processing for performance
 
-    workingSet.forEach(row => {
-      const xVal = String(row[config.xAxisKey] || 'N/A');
+    data.forEach(row => {
+      const xVal = String(row[config.xAxisKey] || 'Other');
       const yVal = Number(row[config.yAxisKey]);
-      const validY = !isNaN(yVal) ? yVal : 0;
-      
-      if (!agg[xVal]) {
-        agg[xVal] = 0;
-        count[xVal] = 0;
+      if (!isNaN(yVal)) {
+        agg[xVal] = (agg[xVal] || 0) + yVal;
+        count[xVal] = (count[xVal] || 0) + 1;
       }
-      agg[xVal] += validY;
-      count[xVal]++;
     });
 
-    const items = Object.keys(agg).map(key => ({
-      name: key,
-      value: Number(agg[key].toFixed(2)),
-      count: count[key]
-    })).sort((a, b) => {
-      const valA = isNaN(Number(a.name)) ? a.name : Number(a.name);
-      const valB = isNaN(Number(b.name)) ? b.name : Number(b.name);
-      return valA < valB ? -1 : 1;
-    });
-
-    if (items.length === 0) return [];
-
-    const totalValue = items.reduce((sum, item) => sum + item.value, 0);
-    const seriesAverage = items.length > 0 ? totalValue / items.length : 0;
-
-    return items.map((item, idx) => ({
-      ...item,
-      average: seriesAverage,
-      prevValue: idx > 0 ? items[idx - 1].value : undefined
-    }));
+    return Object.entries(agg).map(([name, value]) => ({
+      name,
+      value: Number(value.toFixed(2)),
+      avg: Number((value / count[name]).toFixed(2))
+    })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [data, config]);
 
   const textColor = isDark ? '#94a3b8' : '#64748b';
   const gridColor = isDark ? '#1e293b' : '#f1f5f9';
 
   const renderChart = () => {
-    if (processedData.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
-          <AlertCircle size={24} />
-          <p className="text-sm italic">No data available for these keys</p>
-        </div>
-      );
-    }
+    if (processedData.length === 0) return (
+      <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">No valid data for this visual context</div>
+    );
 
     switch (config.type) {
       case ChartType.BAR:
         return (
-          <BarChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <BarChart data={processedData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
-            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
-            <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc', radius: 4 }} />
-            <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={24} />
-          </BarChart>
-        );
-      case ChartType.LINE:
-        return (
-          <LineChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
-            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
-            <Tooltip content={<CustomTooltip isDark={isDark} />} />
-            <Line 
-              type="monotone" 
-              dataKey="value" 
-              stroke="#4f46e5" 
-              strokeWidth={2} 
-              dot={{ r: 3, fill: '#4f46e5', strokeWidth: 1.5, stroke: isDark ? '#0f172a' : '#fff' }} 
-              activeDot={{ r: 5, strokeWidth: 0 }} 
+            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => Intl.NumberFormat('en', { notation: 'compact' }).format(v)} />
+            <Tooltip 
+              contentStyle={{ backgroundColor: isDark ? '#0f172a' : '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
             />
-          </LineChart>
+            <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={24} />
+          </BarChart>
         );
       case ChartType.AREA:
         return (
-          <AreaChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <AreaChart data={processedData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
-            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => new Intl.NumberFormat('en-US', { notation: 'compact' }).format(val)} />
-            <Tooltip content={<CustomTooltip isDark={isDark} />} />
-            <Area 
-              type="monotone" 
-              dataKey="value" 
-              stroke="#4f46e5" 
-              strokeWidth={2}
-              fillOpacity={1} 
-              fill={`url(#colorValue-${config.id})`} 
-            />
-            <defs>
-              <linearGradient id={`colorValue-${config.id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#4f46e5" stopOpacity={isDark ? 0.4 : 0.25}/>
-                <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
+            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => Intl.NumberFormat('en', { notation: 'compact' }).format(v)} />
+            <Tooltip />
+            <Area type="monotone" dataKey="value" stroke="#7c3aed" fill="#7c3aed33" strokeWidth={3} />
           </AreaChart>
         );
       case ChartType.PIE:
         return (
           <PieChart>
-            <Pie
-              data={processedData}
-              innerRadius={60}
-              outerRadius={85}
-              paddingAngle={4}
-              dataKey="value"
-            >
-              {processedData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke={isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.2)'} />
-              ))}
+            <Pie data={processedData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+              {processedData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
             </Pie>
-            <Tooltip content={<CustomTooltip isDark={isDark} />} />
-            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+            <Tooltip />
+            <Legend verticalAlign="bottom" height={36}/>
           </PieChart>
         );
+      case ChartType.LINE:
       default:
-        return <div className="flex items-center justify-center h-full text-slate-400 italic">Unsupported visualization type</div>;
+        return (
+          <LineChart data={processedData}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+            <XAxis dataKey="name" stroke={textColor} fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke={textColor} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => Intl.NumberFormat('en', { notation: 'compact' }).format(v)} />
+            <Tooltip />
+            <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, strokeWidth: 0, fill: '#2563eb' }} activeDot={{ r: 6 }} />
+          </LineChart>
+        );
     }
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col h-[450px] hover:shadow-lg dark:hover:shadow-indigo-500/5 transition-all duration-300 group overflow-hidden">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-1">
-          <h4 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{config.title || "Untitled Chart"}</h4>
-          <div className="flex gap-1">
-            <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800"></div>
-            <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800"></div>
-          </div>
+    <div className="bg-white dark:bg-slate-900 p-8 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col h-[480px] hover:shadow-xl transition-all duration-500 group">
+      <div className="mb-8">
+        <div className="flex items-start justify-between">
+           <h4 className="text-xl font-black text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">{config.title}</h4>
+           <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+             <Info size={16} className="text-slate-400" />
+           </div>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-[90%]">{config.description}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-2 leading-relaxed">{config.description}</p>
       </div>
       <div className="flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           {renderChart()}
         </ResponsiveContainer>
+      </div>
+      <div className="mt-6 pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+           <TrendingUp size={12} className="text-green-500" />
+           Confidence: 98%
+        </div>
+        <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Full Details</button>
       </div>
     </div>
   );

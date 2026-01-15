@@ -1,13 +1,12 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { DashboardAnalysis, DatasetMetadata } from "../types";
 
 export const analyzeDataset = async (
   datasets: DatasetMetadata[]
 ): Promise<DashboardAnalysis> => {
-  // Always create a new instance right before the call to ensure we use the current API key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Prepare a multi-table context for the AI
   const tableContext = datasets.map(ds => ({
     tableName: ds.name,
     columns: ds.columns,
@@ -15,21 +14,22 @@ export const analyzeDataset = async (
   }));
 
   const prompt = `
-    Act as a World-Class Data Architect. Analyze these related datasets:
+    Act as a Senior BI Architect (Power BI/Tableau expert). Analyze these datasets:
     ${JSON.stringify(tableContext)}
 
     Task:
-    1. Identify relationships (Foreign Keys).
-    2. Provide a Summary.
-    3. Define 4-6 Cross-Table KPIs (assume JOINs on common keys).
-    4. Propose 4-6 Charts (BAR, LINE, PIE, AREA).
-    5. Provide 3 cross-table business insights.
+    1. Define relationships between tables.
+    2. Create a comprehensive Multi-Page Report.
+    3. Identify "Dimensions" (categorical columns like Category, Region, Status) that would be effective as "Slicers" (filters).
+    4. Design 3-4 distinct Report Pages (e.g., Executive, Trends, Segment Analysis).
+    5. Each page must contain specific KPIs and Charts.
+    6. Ensure KPIs and Charts use actual column names from the data.
 
-    Return the analysis in JSON format. Be concise.
+    Return a strictly valid JSON object matching the requested schema.
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview", 
+    model: "gemini-3-pro-preview", 
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -37,10 +37,8 @@ export const analyzeDataset = async (
         type: Type.OBJECT,
         properties: {
           summary: { type: Type.STRING },
-          suggestedJoins: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING }
-          },
+          dimensions: { type: Type.ARRAY, items: { type: Type.STRING } },
+          suggestedJoins: { type: Type.ARRAY, items: { type: Type.STRING } },
           kpis: {
             type: Type.ARRAY,
             items: {
@@ -71,12 +69,24 @@ export const analyzeDataset = async (
               required: ["id", "title", "type", "xAxisKey", "yAxisKey"]
             }
           },
-          insights: {
+          pages: {
             type: Type.ARRAY,
-            items: { type: Type.STRING }
-          }
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                title: { type: Type.STRING },
+                icon: { type: Type.STRING },
+                kpiIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+                chartIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+                summary: { type: Type.STRING }
+              },
+              required: ["id", "title", "kpiIds", "chartIds"]
+            }
+          },
+          insights: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
-        required: ["summary", "kpis", "charts", "insights"]
+        required: ["summary", "kpis", "charts", "pages", "dimensions"]
       }
     }
   });
@@ -84,9 +94,10 @@ export const analyzeDataset = async (
   try {
     const text = response.text;
     if (!text) throw new Error("Empty response from AI engine.");
-    return JSON.parse(text) as DashboardAnalysis;
+    const parsed = JSON.parse(text);
+    return parsed as DashboardAnalysis;
   } catch (e) {
     console.error("Failed to parse Gemini response", e);
-    throw new Error("Analysis engine failed to architect the relational model. Please check your data format.");
+    throw new Error("The analysis engine could not architect the report. Please verify your data schema.");
   }
 };

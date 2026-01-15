@@ -1,22 +1,23 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { FileUploader } from './components/FileUploader';
 import { Dashboard } from './components/Dashboard';
-import { DataPreview } from './components/DataPreview';
-import { AppState, DatasetMetadata } from './types';
+import { Sidebar } from './components/Sidebar';
+import { AppState, DatasetMetadata, FilterState } from './types';
 import { analyzeDataset } from './services/geminiService';
 import { 
   Loader2, AlertCircle, RotateCcw, Play, 
-  FileSpreadsheet, ListChecks, ArrowRight, Trash2, 
-  Link as LinkIcon, Table, Database, Sparkles, Box, Key
+  ArrowRight, Database, Box, Key, Table, Trash2, 
+  Filter as FilterIcon, ChevronRight
 } from 'lucide-react';
 
 const ANALYSIS_STAGES = [
-  "Mapping relationships...",
-  "Detecting join keys...",
-  "Running statistics...",
-  "Calculating metrics...",
-  "Building dashboard..."
+  "Mapping table relationships...",
+  "Synthesizing report schemas...",
+  "Calculating cross-functional metrics...",
+  "Building multi-page visuals...",
+  "Finalizing workspace..."
 ];
 
 const App: React.FC = () => {
@@ -30,6 +31,8 @@ const App: React.FC = () => {
     isAnalyzing: false,
     analysis: null,
     error: null,
+    activePageId: 'default',
+    filters: {}
   });
 
   const [loadingStage, setLoadingStage] = useState(0);
@@ -50,7 +53,7 @@ const App: React.FC = () => {
       setLoadingStage(0);
       interval = window.setInterval(() => {
         setLoadingStage(prev => (prev < ANALYSIS_STAGES.length - 1 ? prev + 1 : prev));
-      }, 1500);
+      }, 2000);
     }
     return () => clearInterval(interval);
   }, [state.isAnalyzing]);
@@ -75,51 +78,55 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
-      // After selecting, try trigger analysis again or just clear the error
       setState(prev => ({ ...prev, error: null }));
     } else {
-      setState(prev => ({ ...prev, error: "API Key Selection interface not available in this environment." }));
+      setState(prev => ({ ...prev, error: "API Key selector not available. Check environment variables." }));
     }
   };
 
   const triggerAnalysis = async () => {
     if (state.datasets.length === 0) return;
 
-    // Check if key exists or prompt for one
-    const hasKey = process.env.API_KEY && process.env.API_KEY !== "";
-    
-    if (!hasKey) {
-      try {
-        const alreadySelected = await window.aistudio?.hasSelectedApiKey();
-        if (!alreadySelected) {
-          await handleOpenKeySelector();
-          // We proceed anyway as instructed (assuming selection success)
-        }
-      } catch (e) {
-        console.warn("Key selection check failed, proceeding to attempt analysis", e);
-      }
-    }
-
     setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
 
     try {
       const analysis = await analyzeDataset(state.datasets);
-      setState(prev => ({ ...prev, analysis, isAnalyzing: false }));
-    } catch (err: any) {
-      let errorMessage = err.message || "Nexus failed to unify the relational model.";
-      
-      // Check for specific API key missing error from SDK
-      if (errorMessage.includes("API Key must be set") || errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
-        errorMessage = "An active API Key is required for analysis. Please connect a project key.";
-      }
-
       setState(prev => ({ 
         ...prev, 
-        error: errorMessage, 
-        isAnalyzing: false 
+        analysis, 
+        isAnalyzing: false, 
+        activePageId: analysis.pages[0]?.id || 'overview',
+        filters: {} 
       }));
+    } catch (err: any) {
+      let errorMessage = err.message || "Nexus failed to unify the relational model.";
+      if (errorMessage.includes("API Key") || errorMessage.includes("401")) {
+        errorMessage = "An active API Key is required for analysis. Please connect a project key.";
+      }
+      setState(prev => ({ ...prev, error: errorMessage, isAnalyzing: false }));
     }
   };
+
+  const setFilter = (column: string, values: any[]) => {
+    setState(prev => ({
+      ...prev,
+      filters: { ...prev.filters, [column]: values }
+    }));
+  };
+
+  const filteredData = useMemo(() => {
+    if (state.datasets.length === 0) return [];
+    let base = state.datasets[0].data;
+    
+    // Explicitly cast Object.entries to fix property 'length' and 'includes' not existing on 'unknown'
+    (Object.entries(state.filters) as [string, any[]][]).forEach(([col, values]) => {
+      if (values.length > 0) {
+        base = base.filter(row => values.includes(row[col]));
+      }
+    });
+    
+    return base;
+  }, [state.datasets, state.filters]);
 
   const reset = () => {
     setState({
@@ -127,19 +134,10 @@ const App: React.FC = () => {
       isAnalyzing: false,
       analysis: null,
       error: null,
+      activePageId: 'default',
+      filters: {}
     });
   };
-
-  const toggleTheme = () => setIsDark(!isDark);
-  const primaryData = state.datasets.length > 0 ? state.datasets[0].data : [];
-
-  const sharedKeys = useMemo(() => {
-    if (state.datasets.length < 2) return [];
-    const allCols = state.datasets.flatMap(ds => ds.columns);
-    const counts: { [key: string]: number } = {};
-    allCols.forEach(c => counts[c] = (counts[c] || 0) + 1);
-    return Object.keys(counts).filter(c => counts[c] > 1);
-  }, [state.datasets]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-300">
@@ -147,211 +145,133 @@ const App: React.FC = () => {
         onReset={state.datasets.length > 0 ? reset : undefined} 
         analysis={state.analysis}
         isDark={isDark}
-        toggleTheme={toggleTheme}
+        toggleTheme={() => setIsDark(!isDark)}
       />
       
-      <main className="flex-1 container mx-auto px-4 py-6 md:py-8">
-        {state.datasets.length === 0 ? (
-          <div className="max-w-3xl mx-auto mt-6 md:mt-12">
-            <div className="text-center mb-10">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-6">
-                <Database size={14} /> Relational Data Engine
-              </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight">
-                Nexus Intelligence <span className="text-indigo-600 dark:text-indigo-400">Workspace</span>
-              </h1>
-              <p className="text-base md:text-lg text-slate-600 dark:text-slate-400 px-4 md:px-0">
-                Connect multiple datasets (Sales, Customers, Products) to unlock 
-                deep cross-functional insights. Upload your files to begin architecting.
-              </p>
-            </div>
-            <FileUploader onUpload={handleAddDataset} isDark={isDark} />
-          </div>
-        ) : (
-          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-700">
-            {state.isAnalyzing ? (
-              <div className="flex flex-col items-center justify-center py-20 md:py-32 space-y-8">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-indigo-100 dark:bg-indigo-900/30 rounded-full animate-ping opacity-25"></div>
-                  <Loader2 className="w-12 h-12 md:w-16 md:h-16 text-indigo-600 dark:text-indigo-400 animate-spin relative" />
-                </div>
-                <div className="text-center space-y-6 max-w-md px-4">
-                  <div className="space-y-2">
-                    <h3 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white">
-                      {ANALYSIS_STAGES[loadingStage]}
-                    </h3>
-                    <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium italic">
-                      Nexus High-Speed Engine Active...
-                    </p>
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    {ANALYSIS_STAGES.map((_, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`h-1.5 rounded-full transition-all duration-500 ${
-                          idx <= loadingStage ? 'w-8 bg-indigo-600 dark:bg-indigo-400' : 'w-4 bg-slate-200 dark:bg-slate-800'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : state.error ? (
-              <div className="max-w-2xl mx-auto bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 p-6 md:p-8 rounded-2xl flex flex-col sm:flex-row items-start gap-5 shadow-sm">
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
-                  <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-red-900 dark:text-red-100 mb-2">Relational Engine Fault</h3>
-                  <p className="text-red-700 dark:text-red-300 mb-6 leading-relaxed text-sm md:text-base">{state.error}</p>
-                  <div className="flex flex-wrap gap-4">
-                    <button onClick={reset} className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-md active:scale-95">
-                      <RotateCcw size={18} /> Reset Workspace
-                    </button>
-                    {state.error.includes("Key") && (
-                      <button onClick={handleOpenKeySelector} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95">
-                        <Key size={18} /> Connect API Key
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : !state.analysis ? (
-              <div className="max-w-5xl mx-auto space-y-6 md:space-y-10 animate-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-12 opacity-5 hidden lg:block">
-                     <Database size={150} className="text-indigo-600" />
-                  </div>
-                  <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 md:gap-8 mb-6 md:mb-10">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                         <Box className="text-indigo-600 dark:text-indigo-400 w-5 h-5 md:w-6 md:h-6" />
-                         <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Nexus Data Architect</h2>
-                      </div>
-                      <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium">Verify relationships between your {state.datasets.length} tables before synchronizing.</p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                      <div className="flex-1 sm:flex-none">
-                        <FileUploader onUpload={handleAddDataset} isDark={isDark} compact />
-                      </div>
-                      <button 
-                        onClick={triggerAnalysis}
-                        disabled={state.datasets.length === 0}
-                        className="flex items-center justify-center gap-3 px-6 md:px-10 py-4 md:py-5 bg-indigo-600 text-white rounded-xl md:rounded-2xl font-bold text-lg md:text-xl shadow-2xl shadow-indigo-300 dark:shadow-indigo-900/40 hover:bg-indigo-700 hover:-translate-y-1 transition-all active:scale-95 group disabled:opacity-50"
-                      >
-                        <Play size={20} className="fill-current" />
-                        Analyze
-                        <ArrowRight className="group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-                    {state.datasets.map((ds) => (
-                      <div key={ds.id} className="p-4 md:p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl md:rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between group">
-                        <div>
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="bg-white dark:bg-slate-900 p-2 rounded-lg shadow-sm">
-                              <Table className="text-indigo-600 dark:text-indigo-400" size={18} />
-                            </div>
-                            <button 
-                              onClick={() => removeDataset(ds.id)}
-                              className="p-2 text-slate-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                          <h4 className="font-bold text-slate-900 dark:text-white truncate mb-1 text-sm md:text-base">{ds.name}</h4>
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{ds.rowCount} Records</p>
-                        </div>
-                        
-                        <div className="mt-4 md:mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                           <div className="flex flex-wrap gap-1">
-                             {ds.columns.slice(0, 3).map(col => (
-                               <span key={col} className={`text-[8px] md:text-[9px] px-2 py-0.5 rounded-full font-bold border ${sharedKeys.includes(col) ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-100 dark:border-slate-700'}`}>
-                                 {col} {sharedKeys.includes(col) && '🔗'}
-                               </span>
-                             ))}
-                             {ds.columns.length > 3 && <span className="text-[8px] md:text-[9px] text-slate-400 font-bold">+{ds.columns.length - 3}</span>}
-                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {sharedKeys.length > 0 && (
-                    <div className="mt-6 md:mt-8 p-3 md:p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl md:rounded-2xl border border-indigo-100 dark:border-indigo-800/40 flex items-center gap-4">
-                      <div className="bg-indigo-600 p-2 rounded-lg flex-shrink-0">
-                         <LinkIcon size={14} className="text-white" />
-                      </div>
-                      <p className="text-xs md:text-sm font-medium text-indigo-900 dark:text-indigo-200">
-                        Nexus discovered potential relationships through <span className="font-bold underline">{sharedKeys.join(', ')}</span>. Cross-table intelligence enabled.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {state.datasets.length > 0 && (
-                  <div className="space-y-4 px-1 md:px-0">
-                    <div className="flex items-center gap-3">
-                      <ListChecks className="text-indigo-600" size={18} />
-                      <h3 className="text-base md:text-lg font-bold text-slate-800 dark:text-slate-200">
-                        Raw Feed Sample: {state.datasets[0].name}
-                      </h3>
-                    </div>
-                    <DataPreview data={primaryData} />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <Dashboard analysis={state.analysis} data={primaryData} isDark={isDark} />
-                <div className="mt-12 md:mt-16 px-1 md:px-0">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="text-indigo-600 w-5 h-5 md:w-6 md:h-6" />
-                      <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white">Relational Insights Detail</h2>
-                    </div>
-                    <div className="self-start md:self-auto px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                      Joined Schema Verified
-                    </div>
-                  </div>
-                  {state.analysis.suggestedJoins && state.analysis.suggestedJoins.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-8">
-                      {state.analysis.suggestedJoins.map((join, i) => (
-                         <div key={i} className="p-3 md:p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl md:rounded-2xl flex items-center gap-3 shadow-sm">
-                            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                              <LinkIcon size={14} className="text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <span className="text-[11px] md:text-xs font-bold text-slate-700 dark:text-slate-300">{join}</span>
-                         </div>
-                      ))}
-                    </div>
-                  )}
-                  <DataPreview data={primaryData} />
-                </div>
-              </>
-            )}
-          </div>
+      <div className="flex flex-1 overflow-hidden">
+        {state.analysis && (
+          <Sidebar 
+            analysis={state.analysis} 
+            activePageId={state.activePageId} 
+            onPageChange={(id) => setState(p => ({ ...p, activePageId: id }))}
+            datasets={state.datasets}
+            filters={state.filters}
+            onFilterChange={setFilter}
+          />
         )}
-      </main>
 
-      <footer className="py-8 md:py-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-            <div className="flex items-center gap-2 grayscale opacity-50 dark:opacity-40">
-               <div className="bg-slate-800 dark:bg-slate-700 p-1.5 rounded">
-                 <div className="w-4 h-4 bg-white rounded-sm"></div>
+        <main className="flex-1 overflow-y-auto relative custom-scrollbar">
+          {!state.datasets.length ? (
+            <div className="max-w-4xl mx-auto mt-20 px-6">
+              <div className="text-center mb-12">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-blue-100 dark:border-blue-800">
+                  <Database size={14} /> Enterprise BI Platform
+                </div>
+                <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
+                  Professional Data <span className="text-blue-600 dark:text-blue-400">Synthesis</span>
+                </h1>
+                <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium">
+                  The world's most advanced AI-powered business intelligence engine. 
+                  Connect multiple datasets to generate relational reports automatically.
+                </p>
+              </div>
+              <FileUploader onUpload={handleAddDataset} isDark={isDark} />
+            </div>
+          ) : state.isAnalyzing ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-50">
+               <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl animate-pulse"></div>
+                  <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
                </div>
-               <span className="font-bold text-slate-800 dark:text-slate-200 text-sm md:text-base">NEXUS ANALYTICS</span>
+               <div className="text-center space-y-4">
+                  <h3 className="text-2xl font-black text-slate-800 dark:text-white">{ANALYSIS_STAGES[loadingStage]}</h3>
+                  <div className="flex gap-1 justify-center">
+                    {ANALYSIS_STAGES.map((_, i) => (
+                      <div key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i <= loadingStage ? 'w-8 bg-blue-600' : 'w-2 bg-slate-200 dark:bg-slate-800'}`} />
+                    ))}
+                  </div>
+               </div>
             </div>
-            <div className="text-slate-400 dark:text-slate-500 text-xs md:text-sm font-medium">
-              &copy; {new Date().getFullYear()} Nexus Enterprise Solutions. Protected by AES-256 Encryption.
+          ) : state.error ? (
+            <div className="h-full flex items-center justify-center p-6">
+              <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 rounded-3xl shadow-2xl text-center">
+                <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-10 h-10 text-red-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Relational Engine Fault</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 font-medium leading-relaxed">{state.error}</p>
+                <div className="flex flex-col gap-3">
+                  {state.error.includes("Key") && (
+                    <button onClick={handleOpenKeySelector} className="flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95">
+                      <Key size={18} /> Connect Project Key
+                    </button>
+                  )}
+                  <button onClick={reset} className="flex items-center justify-center gap-3 px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+                    <RotateCcw size={18} /> Reset Workspace
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </footer>
+          ) : !state.analysis ? (
+             <div className="p-8 max-w-6xl mx-auto space-y-8">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] p-10 shadow-xl overflow-hidden relative">
+                   <div className="absolute top-0 right-0 p-16 opacity-5 pointer-events-none">
+                      <Database size={240} className="text-blue-600" />
+                   </div>
+                   <div className="relative z-10">
+                      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12">
+                         <div>
+                            <div className="flex items-center gap-3 mb-3">
+                               <Box className="text-blue-600 w-6 h-6" />
+                               <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Active Workspace</h2>
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium">Verify your data relationships before the AI architect builds your reporting engine.</p>
+                         </div>
+                         <div className="flex gap-4 w-full lg:w-auto">
+                            <button onClick={triggerAnalysis} className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-2xl shadow-blue-500/40 hover:bg-blue-700 hover:-translate-y-1 transition-all active:scale-95 group">
+                               <Play size={22} className="fill-current" />
+                               Analyze Datasets
+                               <ChevronRight className="group-hover:translate-x-1 transition-transform" />
+                            </button>
+                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                         {state.datasets.map(ds => (
+                            <div key={ds.id} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between group transition-all hover:border-blue-300 dark:hover:border-blue-800">
+                               <div>
+                                  <div className="flex items-center justify-between mb-6">
+                                     <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm">
+                                        <Table className="text-blue-600" size={20} />
+                                     </div>
+                                     <button onClick={() => removeDataset(ds.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                                        <Trash2 size={18} />
+                                     </button>
+                                  </div>
+                                  <h4 className="font-black text-slate-900 dark:text-white truncate mb-1 text-lg">{ds.name}</h4>
+                                  <div className="flex items-center gap-2">
+                                     <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-black uppercase tracking-widest">{ds.rowCount} Records</span>
+                                     <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-black uppercase tracking-widest">{ds.columns.length} Cols</span>
+                                  </div>
+                               </div>
+                            </div>
+                         ))}
+                         <div onClick={() => document.getElementById('file-input')?.click()} className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-blue-600 hover:border-blue-400">
+                            <Box size={32} />
+                            <span className="font-bold text-sm">Add Table</span>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+                <FileUploader onUpload={handleAddDataset} isDark={isDark} compact />
+             </div>
+          ) : (
+            <div className="p-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
+              <Dashboard analysis={state.analysis} data={filteredData} isDark={isDark} activePageId={state.activePageId} />
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 };

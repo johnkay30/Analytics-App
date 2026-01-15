@@ -39,18 +39,27 @@ export interface KPIConfig {
   trend?: 'up' | 'down' | 'neutral';
 }
 
+export interface ReportPage {
+  id: string;
+  title: string;
+  icon: string;
+  kpiIds: string[];
+  chartIds: string[];
+  summary: string;
+}
+
 export interface DashboardAnalysis {
   summary: string;
+  pages: ReportPage[];
   kpis: KPIConfig[];
   charts: ChartConfig[];
   insights: string[];
-  suggestedJoins?: string[]; // AI suggested relationships
+  dimensions: string[]; // Columns suitable for filtering/slicing
+  suggestedJoins?: string[];
 }
 
-export interface DashboardLayout {
-  kpiOrder: string[];
-  chartOrder: string[];
-  hiddenIds: string[];
+export interface FilterState {
+  [column: string]: any[];
 }
 
 export interface AppState {
@@ -58,4 +67,6 @@ export interface AppState {
   isAnalyzing: boolean;
   analysis: DashboardAnalysis | null;
   error: string | null;
+  activePageId: string;
+  filters: FilterState;
 }
