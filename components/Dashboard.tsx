@@ -16,10 +16,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
   const [selectedKPI, setSelectedKPI] = useState<KPIConfig | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
+  // Storage key based on combined schema hash
   const datasetKey = useMemo(() => {
-    const cols = Object.keys(data[0] || {}).sort().join(',');
-    return `nexus_layout_${btoa(cols).slice(0, 16)}`;
-  }, [data]);
+    const kpiIds = analysis.kpis.map(k => k.id).sort().join(',');
+    return `nexus_multi_layout_${btoa(kpiIds).slice(0, 16)}`;
+  }, [analysis]);
 
   const [layout, setLayout] = useState<DashboardLayout>(() => {
     const saved = localStorage.getItem(datasetKey);
@@ -86,15 +87,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
   return (
     <div className="space-y-6">
       {/* 1. TOP HORIZONTAL KPI ROW */}
-      <section className="bg-slate-900/5 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+      <section className="bg-slate-900/5 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
         <div className="flex items-center justify-between mb-2 px-2">
           <div className="flex items-center gap-2">
             <BarChartHorizontal size={14} className="text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Metrics Stream</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Relational Metrics Stream</h3>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-[10px] font-bold text-slate-400">Real-time Data Active</span>
+            <span className="text-[10px] font-bold text-slate-400">Multi-Source Synchronized</span>
           </div>
         </div>
         <div className="flex items-center gap-4 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
@@ -120,15 +121,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
 
       {/* 2. FILTERS AND SELECTION KPI / SUMMARY AREA */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Workspace Controls & Selection */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 h-full shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="bg-indigo-600 p-2 rounded-lg">
+                <div className="bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-200 dark:shadow-none">
                   <Settings2 className="text-white w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white">Workspace</h3>
+                <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">Intelligence Config</h3>
               </div>
               <button 
                 onClick={() => setIsEditing(!isEditing)}
@@ -140,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
             
             <div className="space-y-4">
               <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
-                <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-3 tracking-widest">Active Analysis Context</p>
+                <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-3 tracking-widest">Active Join Context</p>
                 {selectedKPI ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -148,27 +148,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
                       <button onClick={() => setSelectedKPI(null)} className="text-[10px] text-indigo-600 font-bold hover:underline">Clear</button>
                     </div>
                     <div className="flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-xs text-indigo-700 dark:text-indigo-300 font-medium">
-                      <Info size={14} /> Focusing visualizations on this metric
+                      <Info size={14} /> Harmonizing visuals around this metric
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic">Select a metric from the ticker to filter charts.</p>
+                  <p className="text-xs text-slate-400 italic">Select a cross-table metric to isolate insights.</p>
                 )}
               </div>
 
               {isEditing && (
                 <div className="space-y-2 animate-in slide-in-from-top duration-300">
-                   <button 
-                    onClick={saveLayout}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40"
-                  >
-                    <Save size={14} /> Save Layout
+                   <button onClick={saveLayout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40 hover:bg-indigo-700">
+                    <Save size={14} /> Save Relational View
                   </button>
-                  <button 
-                    onClick={resetLayout}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-xs"
-                  >
-                    <RotateCcw size={14} /> Reset View
+                  <button onClick={resetLayout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-xs hover:bg-slate-200">
+                    <RotateCcw size={14} /> Restore Default Map
                   </button>
                 </div>
               )}
@@ -176,7 +170,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
           </div>
         </div>
 
-        {/* Executive Summary */}
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 h-full transition-colors overflow-hidden relative">
             <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -185,7 +178,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
                 <Sparkles className="text-indigo-600 dark:text-indigo-400 w-5 h-5" />
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Intelligence</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Relational Summary</h2>
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed mb-6 max-w-2xl">
                 {analysis.summary}
@@ -205,18 +198,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
         </div>
       </section>
 
-      {/* 3. PROFESSIONAL CHARTS SIDE BY SIDE */}
+      {/* 3. SIDE BY SIDE CHARTS */}
       <section>
         <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
             <LayoutGrid size={18} className="text-indigo-600" />
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Advanced Data Visualizations</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Cross-Dataset Visualizations</h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">View Options</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Query Engine Active</span>
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-              <div className="px-2 py-1 bg-white dark:bg-slate-700 rounded shadow-sm text-[10px] font-bold text-indigo-600">Grid</div>
-              <div className="px-2 py-1 text-[10px] font-bold text-slate-400">List</div>
+              <div className="px-3 py-1 bg-white dark:bg-slate-700 rounded shadow-sm text-[10px] font-bold text-indigo-600">GRID VIEW</div>
             </div>
           </div>
         </div>
@@ -243,7 +235,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ analysis, data, isDark }) 
         </div>
       </section>
 
-      {/* Drill-down Drawer */}
       {selectedKPI && (
         <KPIDetailDrawer 
           kpi={selectedKPI} 
