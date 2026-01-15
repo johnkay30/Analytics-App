@@ -1,21 +1,26 @@
 
 import React, { useState } from 'react';
-import { Upload, FileType, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, FileType, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { DataRow } from '../types';
 
 interface FileUploaderProps {
   onUpload: (data: DataRow[]) => void;
+  isDark?: boolean;
 }
 
-export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload }) => {
+export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, isDark }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
     setError(null);
-    const validTypes = ['text/csv', 'application/json'];
+    setIsProcessing(true);
+    
+    const validTypes = ['text/csv', 'application/json', 'application/vnd.ms-excel'];
     if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
-      setError("Please upload a valid CSV or JSON file.");
+      setError("Supported formats: CSV, JSON.");
+      setIsProcessing(false);
       return;
     }
 
@@ -28,8 +33,9 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload }) => {
         if (file.name.endsWith('.json')) {
           data = JSON.parse(content);
         } else {
-          // Simple CSV parser
-          const lines = content.split('\n').filter(l => l.trim());
+          const lines = content.split(/\r?\n/).filter(l => l.trim());
+          if (lines.length < 2) throw new Error("File has insufficient data.");
+          
           const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
           
           data = lines.slice(1).map(line => {
@@ -37,7 +43,6 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload }) => {
             const obj: any = {};
             headers.forEach((header, i) => {
               const val = values[i];
-              // Try to parse as number
               const num = Number(val);
               obj[header] = !isNaN(num) && val !== '' ? num : val;
             });
@@ -48,11 +53,17 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload }) => {
         if (data.length > 0) {
           onUpload(data);
         } else {
-          setError("The file appears to be empty.");
+          setError("Target dataset contains no records.");
+          setIsProcessing(false);
         }
       } catch (err) {
-        setError("Error parsing file. Check the format.");
+        setError("Structural validation failed. Check file formatting.");
+        setIsProcessing(false);
       }
+    };
+    reader.onerror = () => {
+      setError("File system read error.");
+      setIsProcessing(false);
     };
     reader.readAsText(file);
   };
@@ -67,15 +78,15 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload }) => {
   return (
     <div className="w-full">
       <div
-        className={`relative group border-2 border-dashed rounded-2xl p-12 transition-all duration-300 flex flex-col items-center justify-center cursor-pointer
+        className={`relative group border-2 border-dashed rounded-3xl p-16 transition-all duration-500 flex flex-col items-center justify-center cursor-pointer overflow-hidden
           ${isDragging 
-            ? 'border-indigo-500 bg-indigo-50 shadow-inner' 
-            : 'border-slate-300 bg-white hover:border-indigo-400 hover:shadow-xl'
-          }`}
+            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-inner' 
+            : 'border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-2xl dark:hover:shadow-indigo-500/5'
+          } ${isProcessing ? 'pointer-events-none opacity-80' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
-        onClick={() => document.getElementById('file-input')?.click()}
+        onClick={() => !isProcessing && document.getElementById('file-input')?.click()}
       >
         <input
           id="file-input"
@@ -88,28 +99,41 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload }) => {
           }}
         />
         
-        <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-          <Upload size={32} />
-        </div>
-        
-        <h3 className="text-xl font-bold text-slate-800 mb-2">Drop your dataset here</h3>
-        <p className="text-slate-500 text-center max-w-sm mb-6">
-          Drag and drop your .csv or .json file, or click to browse.
-        </p>
-        
-        <div className="flex gap-4">
-          <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg">
-            <FileType size={14} /> CSV Support
+        {isProcessing ? (
+          <div className="flex flex-col items-center space-y-4 animate-in fade-in duration-300">
+            <div className="w-16 h-16 border-4 border-indigo-100 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
+            <p className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest text-sm">Ingesting Data...</p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg">
-            <CheckCircle2 size={14} className="text-green-500" /> Auto-Analyze
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="w-24 h-24 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-500 dark:group-hover:text-slate-900">
+              <Upload size={40} />
+            </div>
+            
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">Deploy Data for Analysis</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-center max-w-sm mb-10 font-medium">
+              Drag your operational logs or business exports here. 
+              Supports <span className="text-slate-800 dark:text-white font-bold">CSV</span> and <span className="text-slate-800 dark:text-white font-bold">JSON</span>.
+            </p>
+            
+            <div className="flex gap-6">
+              <div className="flex items-center gap-2 text-[11px] font-extrabold px-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl border border-slate-100 dark:border-slate-700 uppercase tracking-tighter">
+                <FileType size={14} className="text-indigo-500 dark:text-indigo-400" /> Secure Transport
+              </div>
+              <div className="flex items-center gap-2 text-[11px] font-extrabold px-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl border border-slate-100 dark:border-slate-700 uppercase tracking-tighter">
+                <CheckCircle2 size={14} className="text-green-500 dark:text-green-400" /> Instant Discovery
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="absolute top-0 right-0 -m-8 w-32 h-32 bg-indigo-50 dark:bg-indigo-900 rounded-full opacity-20 dark:opacity-10 blur-3xl group-hover:opacity-40 transition-opacity"></div>
+        <div className="absolute bottom-0 left-0 -m-8 w-32 h-32 bg-indigo-50 dark:bg-indigo-900 rounded-full opacity-20 dark:opacity-10 blur-3xl group-hover:opacity-40 transition-opacity"></div>
       </div>
       
       {error && (
-        <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 text-sm">
-          <AlertCircle size={16} />
+        <div className="mt-6 flex items-center gap-3 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-4 rounded-2xl border border-red-100 dark:border-red-900/30 font-bold text-sm animate-in slide-in-from-top-2">
+          <AlertCircle size={18} className="flex-shrink-0" />
           {error}
         </div>
       )}

@@ -38,6 +38,12 @@ export interface DashboardAnalysis {
   insights: string[];
 }
 
+export interface DashboardLayout {
+  kpiOrder: string[]; // List of IDs in order
+  chartOrder: string[]; // List of IDs in order
+  hiddenIds: string[]; // List of hidden element IDs
+}
+
 export interface AppState {
   data: DataRow[];
   columns: string[];

@@ -9,21 +9,17 @@ export const analyzeDataset = async (
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const prompt = `
-    Act as a World-Class Data Scientist and BI Expert. 
-    Analyze this dataset schema and sample rows.
+    Act as a World-Class Data Scientist. Analyze this dataset schema and sample.
     Schema: ${JSON.stringify(schema)}
     Sample Data: ${JSON.stringify(sampleData)}
 
-    Your task:
-    1. Provide a concise executive summary of what this dataset represents.
-    2. Identify the most critical Business KPIs (Key Performance Indicators) that can be derived from this data.
-    3. Suggest professional visualizations (Charts) to represent trends, distributions, and comparisons.
-    4. Provide 3 deep analytical insights based on the columns provided.
+    Task:
+    1. Summary of dataset.
+    2. Critical Business KPIs (sum, avg, count, max, min).
+    3. Charts (BAR, LINE, PIE, AREA).
+    4. 3 deep analytical insights.
 
-    Constraints:
-    - Return valid JSON matching the schema provided.
-    - Suggest charts that use existing column names as xAxisKey and yAxisKey.
-    - For KPIs, specify the numeric column to aggregate and the method (sum, avg, etc.).
+    IMPORTANT: Be extremely concise and fast. Focus on the most impactful business metrics.
   `;
 
   const response = await ai.models.generateContent({
@@ -31,6 +27,7 @@ export const analyzeDataset = async (
     contents: prompt,
     config: {
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 0 }, // Prioritize low-latency response
       responseSchema: {
         type: Type.OBJECT,
         properties: {
@@ -43,10 +40,7 @@ export const analyzeDataset = async (
                 id: { type: Type.STRING },
                 label: { type: Type.STRING },
                 valueKey: { type: Type.STRING },
-                aggregation: { 
-                  type: Type.STRING,
-                  description: "Must be sum, avg, count, max, or min"
-                },
+                aggregation: { type: Type.STRING },
                 prefix: { type: Type.STRING },
                 suffix: { type: Type.STRING }
               },
@@ -60,10 +54,7 @@ export const analyzeDataset = async (
               properties: {
                 id: { type: Type.STRING },
                 title: { type: Type.STRING },
-                type: { 
-                  type: Type.STRING,
-                  description: "Must be BAR, LINE, PIE, AREA, or SCATTER"
-                },
+                type: { type: Type.STRING },
                 xAxisKey: { type: Type.STRING },
                 yAxisKey: { type: Type.STRING },
                 description: { type: Type.STRING }
@@ -81,11 +72,10 @@ export const analyzeDataset = async (
     }
   });
 
-  const text = response.text;
   try {
-    return JSON.parse(text) as DashboardAnalysis;
+    return JSON.parse(response.text) as DashboardAnalysis;
   } catch (e) {
-    console.error("Failed to parse Gemini response", e, text);
+    console.error("Failed to parse Gemini response", e);
     throw new Error("Analysis engine returned invalid format.");
   }
 };
