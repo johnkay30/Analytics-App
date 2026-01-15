@@ -1,17 +1,17 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { DashboardAnalysis, DatasetMetadata } from "../types";
 
 export const analyzeDataset = async (
   datasets: DatasetMetadata[]
 ): Promise<DashboardAnalysis> => {
+  // Always create a new instance right before the call to ensure we use the current API key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Prepare a multi-table context for the AI - trimmed for maximum speed
+  // Prepare a multi-table context for the AI
   const tableContext = datasets.map(ds => ({
     tableName: ds.name,
     columns: ds.columns,
-    sample: ds.data.slice(0, 3) // Reduced sample size for faster token processing
+    sample: ds.data.slice(0, 3)
   }));
 
   const prompt = `
@@ -29,7 +29,7 @@ export const analyzeDataset = async (
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview", // Switched to Flash for high speed
+    model: "gemini-3-flash-preview", 
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -82,9 +82,11 @@ export const analyzeDataset = async (
   });
 
   try {
-    return JSON.parse(response.text) as DashboardAnalysis;
+    const text = response.text;
+    if (!text) throw new Error("Empty response from AI engine.");
+    return JSON.parse(text) as DashboardAnalysis;
   } catch (e) {
     console.error("Failed to parse Gemini response", e);
-    throw new Error("Analysis engine failed to architect the relational model.");
+    throw new Error("Analysis engine failed to architect the relational model. Please check your data format.");
   }
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { FileUploader } from './components/FileUploader';
@@ -7,9 +6,9 @@ import { DataPreview } from './components/DataPreview';
 import { AppState, DatasetMetadata } from './types';
 import { analyzeDataset } from './services/geminiService';
 import { 
-  Loader2, AlertCircle, RotateCcw, CheckCircle2, Play, 
+  Loader2, AlertCircle, RotateCcw, Play, 
   FileSpreadsheet, ListChecks, ArrowRight, Trash2, 
-  Link as LinkIcon, Table, Database, Sparkles, Box
+  Link as LinkIcon, Table, Database, Sparkles, Box, Key
 } from 'lucide-react';
 
 const ANALYSIS_STAGES = [
@@ -35,7 +34,6 @@ const App: React.FC = () => {
 
   const [loadingStage, setLoadingStage] = useState(0);
 
-  // Synchronize dark mode class with the <html> element
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -52,7 +50,7 @@ const App: React.FC = () => {
       setLoadingStage(0);
       interval = window.setInterval(() => {
         setLoadingStage(prev => (prev < ANALYSIS_STAGES.length - 1 ? prev + 1 : prev));
-      }, 1500); // Faster interval for snappier feel
+      }, 1500);
     }
     return () => clearInterval(interval);
   }, [state.isAnalyzing]);
@@ -74,19 +72,50 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio?.openSelectKey) {
+      await window.aistudio.openSelectKey();
+      // After selecting, try trigger analysis again or just clear the error
+      setState(prev => ({ ...prev, error: null }));
+    } else {
+      setState(prev => ({ ...prev, error: "API Key Selection interface not available in this environment." }));
+    }
+  };
+
   const triggerAnalysis = async () => {
     if (state.datasets.length === 0) return;
+
+    // Check if key exists or prompt for one
+    const hasKey = process.env.API_KEY && process.env.API_KEY !== "";
+    
+    if (!hasKey) {
+      try {
+        const alreadySelected = await window.aistudio?.hasSelectedApiKey();
+        if (!alreadySelected) {
+          await handleOpenKeySelector();
+          // We proceed anyway as instructed (assuming selection success)
+        }
+      } catch (e) {
+        console.warn("Key selection check failed, proceeding to attempt analysis", e);
+      }
+    }
 
     setState(prev => ({ ...prev, isAnalyzing: true, error: null }));
 
     try {
-      // The faster model (Flash) typically responds in 2-5 seconds
       const analysis = await analyzeDataset(state.datasets);
       setState(prev => ({ ...prev, analysis, isAnalyzing: false }));
     } catch (err: any) {
+      let errorMessage = err.message || "Nexus failed to unify the relational model.";
+      
+      // Check for specific API key missing error from SDK
+      if (errorMessage.includes("API Key must be set") || errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
+        errorMessage = "An active API Key is required for analysis. Please connect a project key.";
+      }
+
       setState(prev => ({ 
         ...prev, 
-        error: err.message || "Nexus failed to unify the relational model.", 
+        error: errorMessage, 
         isAnalyzing: false 
       }));
     }
@@ -102,11 +131,8 @@ const App: React.FC = () => {
   };
 
   const toggleTheme = () => setIsDark(!isDark);
-
-  // Unified data view for existing preview components (using the first dataset as primary preview)
   const primaryData = state.datasets.length > 0 ? state.datasets[0].data : [];
 
-  // Identify potential shared keys across tables for visual feedback
   const sharedKeys = useMemo(() => {
     if (state.datasets.length < 2) return [];
     const allCols = state.datasets.flatMap(ds => ds.columns);
@@ -178,16 +204,20 @@ const App: React.FC = () => {
                 <div>
                   <h3 className="text-xl font-bold text-red-900 dark:text-red-100 mb-2">Relational Engine Fault</h3>
                   <p className="text-red-700 dark:text-red-300 mb-6 leading-relaxed text-sm md:text-base">{state.error}</p>
-                  <button onClick={reset} className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-md active:scale-95">
-                    <RotateCcw size={18} /> Reset Workspace
-                  </button>
+                  <div className="flex flex-wrap gap-4">
+                    <button onClick={reset} className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-md active:scale-95">
+                      <RotateCcw size={18} /> Reset Workspace
+                    </button>
+                    {state.error.includes("Key") && (
+                      <button onClick={handleOpenKeySelector} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95">
+                        <Key size={18} /> Connect API Key
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : !state.analysis ? (
-              /* NEXUS DATA ARCHITECT STAGING */
               <div className="max-w-5xl mx-auto space-y-6 md:space-y-10 animate-in slide-in-from-bottom-4 duration-500">
-                
-                {/* Workspace Stats & Controls */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-12 opacity-5 hidden lg:block">
                      <Database size={150} className="text-indigo-600" />
@@ -217,7 +247,6 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Datasets Workspace Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                     {state.datasets.map((ds) => (
                       <div key={ds.id} className="p-4 md:p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl md:rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between group">
@@ -263,7 +292,6 @@ const App: React.FC = () => {
                   )}
                 </div>
 
-                {/* Primary Data Preview */}
                 {state.datasets.length > 0 && (
                   <div className="space-y-4 px-1 md:px-0">
                     <div className="flex items-center gap-3">
@@ -277,7 +305,6 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              /* DASHBOARD VIEW: ANALYSIS COMPLETE */
               <>
                 <Dashboard analysis={state.analysis} data={primaryData} isDark={isDark} />
                 <div className="mt-12 md:mt-16 px-1 md:px-0">
