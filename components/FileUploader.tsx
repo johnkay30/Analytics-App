@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, FileType, CheckCircle2, AlertCircle, Loader2, FileJson, FileSpreadsheet } from 'lucide-react';
 import { DatasetMetadata } from '../types';
@@ -143,7 +142,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, isDark, co
         ) : (
           <>
             <div className="w-16 h-16 md:w-20 md:h-20 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-all duration-500 shadow-sm group-hover:bg-indigo-600 group-hover:text-white">
-              <Upload size={28} md={32} />
+              <Upload size={28} />
             </div>
             
             <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight text-center">Add Dataset to Workspace</h3>
